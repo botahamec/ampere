@@ -1,0 +1,10 @@
+[workspace]
+members = [
+	"model",
+	"ai",
+	"cli"
+]
+
+[profile.release]
+lto = true
+panic = 'abort'
