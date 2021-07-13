@@ -24,6 +24,7 @@ impl Display for PieceColor {
 }
 
 impl PieceColor {
+	/// Flips the color
 	pub const fn flip(self) -> Self {
 		// TODO optimize
 		match self {
@@ -32,6 +33,11 @@ impl PieceColor {
 		}
 	}
 
+	/// Flips the color if the statement is true
+	///
+	/// # Arguments
+	///
+	/// * `statement` - Flips the color if true
 	pub const fn flip_if(self, statement: bool) -> Self {
 		if statement {
 			self.flip()
@@ -53,5 +59,36 @@ mod tests {
 	#[test]
 	fn dark_display() {
 		assert_eq!(PieceColor::Dark.to_string(), "Dark");
+	}
+
+	#[test]
+	fn flip() {
+		let light = PieceColor::Light;
+		let dark = PieceColor::Dark;
+		assert_eq!(light.flip(), dark);
+		assert_eq!(dark.flip(), light);
+	}
+
+	#[test]
+	fn flip_if() {
+		let light = PieceColor::Light;
+		let dark = PieceColor::Dark;
+
+		assert_eq!(light.flip_if(true), dark);
+		assert_eq!(light.flip_if(false), light);
+		assert_eq!(dark.flip_if(true), light);
+		assert_eq!(dark.flip_if(false), dark);
+	}
+
+	#[test]
+	fn test_send() {
+		fn assert_send<T: Send>() {}
+		assert_send::<PieceColor>();
+	}
+
+	#[test]
+	fn test_sync() {
+		fn assert_sync<T: Sync>() {}
+		assert_sync::<PieceColor>();
 	}
 }

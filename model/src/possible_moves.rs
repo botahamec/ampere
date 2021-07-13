@@ -178,6 +178,7 @@ impl PossibleMoves {
 		}
 	}
 
+	// TODO make this private
 	pub const fn has_jumps_dark(board: CheckersBitBoard) -> bool {
 		const FORWARD_LEFT_MASK: u32 = 0b00110000111100111111001111000011;
 		const FORWARD_RIGHT_MASK: u32 = 0b00111100111111001111000011001100;
@@ -209,6 +210,7 @@ impl PossibleMoves {
 		}
 	}
 
+	// TODO make this private
 	pub const fn has_jumps_light(board: CheckersBitBoard) -> bool {
 		const FORWARD_LEFT_MASK: u32 = 0b00110000111100111111001111000011;
 		const FORWARD_RIGHT_MASK: u32 = 0b00111100111111001111000011001100;
@@ -241,6 +243,7 @@ impl PossibleMoves {
 	}
 
 	#[inline(always)]
+	// TODO optimize
 	pub const fn has_jumps(board: CheckersBitBoard) -> bool {
 		match board.turn() {
 			PieceColor::Light => Self::has_jumps_light(board),
@@ -273,6 +276,7 @@ impl PossibleMoves {
 		}
 	}
 
+	/// Returns true if no moves are possible
 	pub const fn is_empty(self) -> bool {
 		(self.backward_left_movers
 			| self.forward_left_movers
@@ -281,14 +285,29 @@ impl PossibleMoves {
 			== 0
 	}
 
+	/// Returns true if the piece can jump
 	pub const fn can_jump(self) -> bool {
 		self.jump
 	}
 
+	/// Returns the pieces who can move forward left,
+	/// with undefined behavior for bits where a forward left move is impossible
+	///
+	/// # Safety
+	///
+	/// This function is inherently unsafe because some bits are undefined
+	// TODO make this unsafe
 	pub const fn forward_left_bits(self) -> u32 {
 		self.forward_left_movers
 	}
 
+	/// Gets the bits for a certain direction,
+	/// with undefined behavior for bits where the given move is impossible
+	///
+	/// # Safety
+	///
+	/// This function is inherently unsafe because some bits are undefined
+	// TODO make this unsafe
 	pub const fn get_direction_bits(self, direction: MoveDirection) -> u32 {
 		match direction {
 			MoveDirection::ForwardLeft => self.forward_left_movers,

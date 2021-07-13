@@ -91,7 +91,8 @@ impl Iterator for PossibleMovesIter {
 						.possible_moves
 						.get_direction_bits(self.current_direction);
 
-					// safety: the max value of the enum is 3
+					// safety: this iterator stops returning values before this
+					// can result in undefined behavior
 					unsafe {
 						self.squares = &*(self.squares as *const [usize; 33]).add(1);
 					}

@@ -538,6 +538,7 @@ fn test_move_piece_to_default_board() {
 	assert!(board.piece_at(5));
 	assert_eq!(board.color_at(5).unwrap(), PieceColor::Light);
 	assert!(!board.king_at(5).unwrap());
+	assert_eq!(board.turn, PieceColor::Light);
 }
 
 #[test]
@@ -548,6 +549,7 @@ fn test_move_piece_forward_standard() {
 	assert!(board.piece_at(16));
 	assert_eq!(board.color_at(16).unwrap(), PieceColor::Light);
 	assert!(!board.king_at(16).unwrap());
+	assert_eq!(board.turn, PieceColor::Light);
 }
 
 #[test]
@@ -558,6 +560,21 @@ fn test_move_piece_forward_wrap() {
 	assert!(board.piece_at(9));
 	assert_eq!(board.color_at(9).unwrap(), PieceColor::Dark);
 	assert!(!board.king_at(9).unwrap());
+	assert_eq!(board.turn, PieceColor::Light);
+}
+
+#[test]
+fn test_move_piece_forward_left_to_king() {
+	let board = CheckersBitBoard::new(0b10000, 0b10000, 0, PieceColor::Dark);
+	let board = unsafe { board.move_piece_forward_left_unchecked(4) };
+	assert!(board.king_at(5));
+}
+
+#[test]
+fn test_move_piece_backward_left_to_king() {
+	let board = CheckersBitBoard::new(0b10, 0, 0, PieceColor::Dark);
+	let board = unsafe { board.move_piece_backward_left_unchecked(1) };
+	assert!(board.king_at(0));
 }
 
 #[test]
@@ -568,6 +585,7 @@ fn test_move_piece_backward_standard() {
 	assert!(board.piece_at(15));
 	assert_eq!(board.color_at(15).unwrap(), PieceColor::Dark);
 	assert!(!board.king_at(15).unwrap());
+	assert_eq!(board.turn, PieceColor::Light);
 }
 
 #[test]
@@ -578,6 +596,7 @@ fn test_move_piece_backward_wrap() {
 	assert!(board.piece_at(28));
 	assert_eq!(board.color_at(28).unwrap(), PieceColor::Light);
 	assert!(!board.king_at(28).unwrap());
+	assert_eq!(board.turn, PieceColor::Light);
 }
 
 #[test]
@@ -596,6 +615,7 @@ fn test_jump_forward_left_specific() {
 	assert!(board2.piece_at(14));
 	assert_eq!(board2.color_at(14).unwrap(), board.color_at(0).unwrap());
 	assert_eq!(board2.king_at(14).unwrap(), board.king_at(0).unwrap());
+	assert_eq!(board.turn, PieceColor::Light);
 }
 
 #[test]
@@ -613,6 +633,7 @@ fn test_jump_forward_right_specific() {
 	assert!(board2.piece_at(20));
 	assert_eq!(board2.color_at(20).unwrap(), board.color_at(18).unwrap());
 	assert_eq!(board2.king_at(20).unwrap(), board.king_at(18).unwrap());
+	assert_eq!(board.turn, PieceColor::Light);
 }
 
 #[test]
@@ -630,6 +651,7 @@ fn test_jump_backward_left_specific() {
 	assert!(board2.piece_at(23));
 	assert_eq!(board2.color_at(23).unwrap(), board.color_at(25).unwrap());
 	assert_eq!(board2.king_at(23).unwrap(), board.king_at(25).unwrap());
+	assert_eq!(board.turn, PieceColor::Light);
 }
 
 #[test]
@@ -647,6 +669,7 @@ fn test_jump_backward_right_specific() {
 	assert!(board2.piece_at(29));
 	assert_eq!(board2.color_at(29).unwrap(), board.color_at(11).unwrap());
 	assert_eq!(board2.king_at(29).unwrap(), board.king_at(11).unwrap());
+	assert_eq!(board.turn, PieceColor::Light);
 }
 
 #[test]

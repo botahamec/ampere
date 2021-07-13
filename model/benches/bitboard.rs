@@ -82,15 +82,17 @@ fn king_at(c: &mut Criterion) {
 }
 
 criterion_group!(
-	bitboard, clone,
-	          hash, eq,
-	          default,
-	          default_const,
-	          new,
-	          piece_at,
-	          color_at_unchecked,
-	          king_at_unchecked,
-	          color_at,
-	          king_at,
+	bitboard,
+	clone,
+	hash,
+	eq,
+	default,
+	default_const,
+	new,
+	piece_at,
+	color_at_unchecked,
+	king_at_unchecked,
+	color_at,
+	king_at,
 );
 criterion_main!(bitboard);
