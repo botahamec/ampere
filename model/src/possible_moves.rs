@@ -8,7 +8,6 @@ pub struct PossibleMoves {
 	forward_right_movers: u32,
 	backward_left_movers: u32,
 	backward_right_movers: u32,
-	jump: bool,
 }
 
 impl IntoIterator for PossibleMoves {
@@ -53,7 +52,6 @@ impl PossibleMoves {
 			forward_right_movers,
 			backward_left_movers,
 			backward_right_movers,
-			jump: false,
 		}
 	}
 
@@ -88,7 +86,6 @@ impl PossibleMoves {
 			forward_right_movers,
 			backward_left_movers,
 			backward_right_movers,
-			jump: false,
 		}
 	}
 
@@ -130,8 +127,7 @@ impl PossibleMoves {
 			forward_left_movers,
 			forward_right_movers,
 			backward_left_movers,
-			backward_right_movers,
-			jump: true,
+			backward_right_movers: backward_right_movers | 2,
 		}
 	}
 
@@ -173,8 +169,7 @@ impl PossibleMoves {
 			forward_left_movers,
 			forward_right_movers,
 			backward_left_movers,
-			backward_right_movers,
-			jump: true,
+			backward_right_movers: backward_right_movers | 2,
 		}
 	}
 
@@ -279,15 +274,15 @@ impl PossibleMoves {
 	/// Returns true if no moves are possible
 	pub const fn is_empty(self) -> bool {
 		(self.backward_left_movers
-			| self.forward_left_movers
+			| (self.forward_left_movers)
 			| self.forward_right_movers
-			| self.backward_right_movers)
+			| self.backward_right_movers & 4294967293)
 			== 0
 	}
 
 	/// Returns true if the piece can jump
 	pub const fn can_jump(self) -> bool {
-		self.jump
+		(self.backward_right_movers & 2) != 0
 	}
 
 	/// Returns the pieces who can move forward left,
