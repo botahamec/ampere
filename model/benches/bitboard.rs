@@ -34,12 +34,6 @@ fn default_const(c: &mut Criterion) {
 	});
 }
 
-fn new(c: &mut Criterion) {
-	c.bench_function("new", |b| {
-		b.iter(|| CheckersBitBoard::new(black_box(7328), black_box(174), black_box(27590)))
-	});
-}
-
 fn piece_at(c: &mut Criterion) {
 	let board = CheckersBitBoard::starting_position();
 	c.bench_function("piece", |b| b.iter(|| board.piece_at(black_box(0))));
@@ -88,7 +82,6 @@ criterion_group!(
 	eq,
 	default,
 	default_const,
-	new,
 	piece_at,
 	color_at_unchecked,
 	king_at_unchecked,

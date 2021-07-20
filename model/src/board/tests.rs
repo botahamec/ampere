@@ -567,14 +567,16 @@ fn test_move_piece_forward_wrap() {
 fn test_move_piece_forward_left_to_king() {
 	let board = CheckersBitBoard::new(0b10000, 0b10000, 0, PieceColor::Dark);
 	let board = unsafe { board.move_piece_forward_left_unchecked(4) };
-	assert!(board.king_at(5));
+	assert!(board.piece_at(5));
+	assert!(board.king_at(5).unwrap());
 }
 
 #[test]
 fn test_move_piece_backward_left_to_king() {
 	let board = CheckersBitBoard::new(0b10, 0, 0, PieceColor::Dark);
 	let board = unsafe { board.move_piece_backward_left_unchecked(1) };
-	assert!(board.king_at(0));
+	assert!(board.piece_at(0));
+	assert!(board.king_at(0).unwrap());
 }
 
 #[test]
