@@ -1,6 +1,6 @@
 use crate::CheckersBitBoard;
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum MoveDirection {
 	ForwardLeft = 0,
 	ForwardRight = 1,
@@ -9,7 +9,7 @@ pub enum MoveDirection {
 }
 
 /// A checkers move
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Move {
 	/// The position of the piece to move
 	start: u32,
@@ -30,6 +30,7 @@ impl Move {
 	/// * `direction` - The direction the piece should move in
 	/// * `jump` - Whether or not the piece should jump
 	pub const fn new(start: usize, direction: MoveDirection, jump: bool) -> Self {
+		// TODO what are the semantics of usize as u32?
 		Self {
 			start: start as u32,
 			direction,
@@ -84,6 +85,42 @@ impl Move {
 					board.jump_piece_backward_right_unchecked(self.start as usize)
 				}
 			},
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+
+	use proptest::prelude::*;
+	use super::*;
+
+	proptest!{
+		#[test]
+		fn new(start in 0usize..32, jump in proptest::bool::ANY) {
+			let direction = MoveDirection::ForwardLeft;
+			let move_test = Move::new(start, direction, jump);
+			assert_eq!(move_test.start as usize, start);
+			assert_eq!(move_test.direction, direction);
+			assert_eq!(move_test.jump, jump);
+
+			let direction = MoveDirection::ForwardRight;
+			let move_test = Move::new(start, direction, jump);
+			assert_eq!(move_test.start as usize, start);
+			assert_eq!(move_test.direction, direction);
+			assert_eq!(move_test.jump, jump);
+
+			let direction = MoveDirection::BackwardLeft;
+			let move_test = Move::new(start, direction, jump);
+			assert_eq!(move_test.start as usize, start);
+			assert_eq!(move_test.direction, direction);
+			assert_eq!(move_test.jump, jump);
+
+			let direction = MoveDirection::BackwardRight;
+			let move_test = Move::new(start, direction, jump);
+			assert_eq!(move_test.start as usize, start);
+			assert_eq!(move_test.direction, direction);
+			assert_eq!(move_test.jump, jump);
 		}
 	}
 }

@@ -299,6 +299,7 @@ impl CheckersBitBoard {
 	/// # Safety
 	///
 	/// Results in undefined behavior if `start` does not contain a piece
+	// TODO rip out so we don't need to check for both black and white promotion
 	pub const unsafe fn move_piece_to_unchecked(self, start: usize, dest: usize) -> Self {
 		// Clears the bit at the starting value
 		// Sets the bit at the destination value
@@ -317,8 +318,8 @@ impl CheckersBitBoard {
 		// Promotes if the end of the board was reached
 		let kings = (self.kings & !(1 << dest))
 			| (((self.kings >> start) & 1) << dest)
-			| (self.color & DARK_PROMOTION_MASK)
-			| (!self.color & LIGHT_PROMOTION_MASK);
+			| (color & DARK_PROMOTION_MASK)
+			| (!color & LIGHT_PROMOTION_MASK);
 
 		let turn = self.turn.flip();
 
@@ -545,14 +546,14 @@ impl CheckersBitBoard {
 			.move_piece_backward_unchecked(value, 2)
 			.clear_piece(value.wrapping_sub(1) & 31);
 
-		const KING_MASK: u32 = 0b00000000000010000010000010000010;
-		if PossibleMoves::has_jumps(board.flip_turn())
-			&& not_king && (((1 << value) & KING_MASK) == 0)
-		{
-			board.flip_turn()
-		} else {
-			board
-		}
+			const KING_MASK: u32 = 0b00000000000010000010000010000010;
+			if PossibleMoves::has_jumps(board.flip_turn())
+				&& not_king && (((1 << value) & KING_MASK) == 0)
+			{
+				board.flip_turn()
+			} else {
+				board
+			}
 	}
 
 	/// Tries to move the piece backward and to the right, without checking if it's a legal move.

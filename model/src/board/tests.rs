@@ -371,7 +371,7 @@ fn test_king_at_unchecked_one_king() {
 fn test_default_bitboard() {
 	let board = CheckersBitBoard::default();
 	let exemptions = vec![2, 28, 22, 16, 27, 21, 15, 9];
-	let black = vec![11, 5, 31, 25, 10, 4, 30, 24, 3, 29, 23, 17];
+	let black = vec![18, 12, 6, 0, 19, 13, 7, 1, 26, 20, 14, 8];
 
 	for i in 0..32 {
 		if !exemptions.contains(&i) {
@@ -536,8 +536,8 @@ fn test_move_piece_to_default_board() {
 	let board = unsafe { board.move_piece_to_unchecked(0, 5) };
 	assert!(!board.piece_at(0));
 	assert!(board.piece_at(5));
-	assert_eq!(board.color_at(5).unwrap(), PieceColor::Light);
-	assert!(!board.king_at(5).unwrap());
+	assert_eq!(board.color_at(5).unwrap(), PieceColor::Dark);
+	assert!(board.king_at(5).unwrap());
 	assert_eq!(board.turn, PieceColor::Light);
 }
 
@@ -547,7 +547,7 @@ fn test_move_piece_forward_standard() {
 	let board = unsafe { board.move_piece_forward_unchecked(14, 2) }; // go to 16
 	assert!(!board.piece_at(14));
 	assert!(board.piece_at(16));
-	assert_eq!(board.color_at(16).unwrap(), PieceColor::Light);
+	assert_eq!(board.color_at(16).unwrap(), PieceColor::Dark);
 	assert!(!board.king_at(16).unwrap());
 	assert_eq!(board.turn, PieceColor::Light);
 }
@@ -558,7 +558,7 @@ fn test_move_piece_forward_wrap() {
 	let board = unsafe { board.move_piece_forward_unchecked(31, 10) }; // go to 9
 	assert!(!board.piece_at(31));
 	assert!(board.piece_at(9));
-	assert_eq!(board.color_at(9).unwrap(), PieceColor::Dark);
+	assert_eq!(board.color_at(9).unwrap(), PieceColor::Light);
 	assert!(!board.king_at(9).unwrap());
 	assert_eq!(board.turn, PieceColor::Light);
 }
@@ -567,8 +567,8 @@ fn test_move_piece_forward_wrap() {
 fn test_move_piece_forward_left_to_king() {
 	let board = CheckersBitBoard::new(0b10000, 0b10000, 0, PieceColor::Dark);
 	let board = unsafe { board.move_piece_forward_left_unchecked(4) };
-	assert!(board.piece_at(5));
-	assert!(board.king_at(5).unwrap());
+	assert!(board.piece_at(11));
+	assert!(board.king_at(11).unwrap());
 }
 
 #[test]
@@ -585,7 +585,7 @@ fn test_move_piece_backward_standard() {
 	let board = unsafe { board.move_piece_backward_unchecked(29, 14) }; // go to 15
 	assert!(!board.piece_at(29));
 	assert!(board.piece_at(15));
-	assert_eq!(board.color_at(15).unwrap(), PieceColor::Dark);
+	assert_eq!(board.color_at(15).unwrap(), PieceColor::Light);
 	assert!(!board.king_at(15).unwrap());
 	assert_eq!(board.turn, PieceColor::Light);
 }
@@ -596,7 +596,7 @@ fn test_move_piece_backward_wrap() {
 	let board = unsafe { board.move_piece_backward_unchecked(0, 4) }; // go to 28
 	assert!(!board.piece_at(0));
 	assert!(board.piece_at(28));
-	assert_eq!(board.color_at(28).unwrap(), PieceColor::Light);
+	assert_eq!(board.color_at(28).unwrap(), PieceColor::Dark);
 	assert!(!board.king_at(28).unwrap());
 	assert_eq!(board.turn, PieceColor::Light);
 }
@@ -617,7 +617,7 @@ fn test_jump_forward_left_specific() {
 	assert!(board2.piece_at(14));
 	assert_eq!(board2.color_at(14).unwrap(), board.color_at(0).unwrap());
 	assert_eq!(board2.king_at(14).unwrap(), board.king_at(0).unwrap());
-	assert_eq!(board.turn, PieceColor::Light);
+	assert_eq!(board2.turn, PieceColor::Light);
 }
 
 #[test]
@@ -635,7 +635,7 @@ fn test_jump_forward_right_specific() {
 	assert!(board2.piece_at(20));
 	assert_eq!(board2.color_at(20).unwrap(), board.color_at(18).unwrap());
 	assert_eq!(board2.king_at(20).unwrap(), board.king_at(18).unwrap());
-	assert_eq!(board.turn, PieceColor::Light);
+	assert_eq!(board2.turn, PieceColor::Light);
 }
 
 #[test]
@@ -653,7 +653,7 @@ fn test_jump_backward_left_specific() {
 	assert!(board2.piece_at(23));
 	assert_eq!(board2.color_at(23).unwrap(), board.color_at(25).unwrap());
 	assert_eq!(board2.king_at(23).unwrap(), board.king_at(25).unwrap());
-	assert_eq!(board.turn, PieceColor::Light);
+	assert_eq!(board2.turn, PieceColor::Light);
 }
 
 #[test]
@@ -671,7 +671,7 @@ fn test_jump_backward_right_specific() {
 	assert!(board2.piece_at(29));
 	assert_eq!(board2.color_at(29).unwrap(), board.color_at(11).unwrap());
 	assert_eq!(board2.king_at(29).unwrap(), board.king_at(11).unwrap());
-	assert_eq!(board.turn, PieceColor::Light);
+	assert_eq!(board2.turn, PieceColor::Light);
 }
 
 #[test]
