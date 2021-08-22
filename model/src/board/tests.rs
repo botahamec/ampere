@@ -558,6 +558,7 @@ fn test_move_piece_forward_wrap() {
 	let board = unsafe { board.move_piece_forward_unchecked(31, 10) }; // go to 9
 	assert!(!board.piece_at(31));
 	assert!(board.piece_at(9));
+	// TODO always move a dark squared piece
 	assert_eq!(board.color_at(9).unwrap(), PieceColor::Light);
 	assert!(!board.king_at(9).unwrap());
 	assert_eq!(board.turn, PieceColor::Light);
