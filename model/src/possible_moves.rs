@@ -1,6 +1,10 @@
 use crate::moves::{Move, MoveDirection};
-use crate::moves_iter::PossibleMovesIter;
 use crate::{CheckersBitBoard, PieceColor};
+use std::alloc::{alloc, dealloc, handle_alloc_error, Layout};
+use std::mem::MaybeUninit;
+use std::ptr::NonNull;
+
+const POSSIBLE_MOVES_ITER_SIZE: usize = 98;
 
 #[derive(Copy, Clone, Debug)]
 pub struct PossibleMoves {
@@ -10,12 +14,299 @@ pub struct PossibleMoves {
 	backward_right_movers: u32,
 }
 
+pub struct PossibleMovesIter {
+	moves: NonNull<[MaybeUninit<Move>; POSSIBLE_MOVES_ITER_SIZE]>,
+	index: usize,
+	length: usize,
+}
+
+impl PossibleMovesIter {
+	fn add_slide_forward_left<const SQUARE: usize>(&mut self, possible_moves: PossibleMoves) {
+		if (possible_moves.forward_left_movers >> SQUARE) & 1 != 0 {
+			let ptr = unsafe { self.moves.as_mut().get_unchecked_mut(self.length) };
+			*ptr = MaybeUninit::new(Move::new(SQUARE, MoveDirection::ForwardLeft, false));
+			self.length += 1;
+		}
+	}
+
+	fn add_slide_forward_right<const SQUARE: usize>(&mut self, possible_moves: PossibleMoves) {
+		if (possible_moves.forward_right_movers >> SQUARE) & 1 != 0 {
+			let ptr = unsafe { self.moves.as_mut().get_unchecked_mut(self.length) };
+			*ptr = MaybeUninit::new(Move::new(SQUARE, MoveDirection::ForwardRight, false));
+			self.length += 1;
+		}
+	}
+
+	fn add_slide_backward_left<const SQUARE: usize>(&mut self, possible_moves: PossibleMoves) {
+		if (possible_moves.backward_left_movers >> SQUARE) & 1 != 0 {
+			let ptr = unsafe { self.moves.as_mut().get_unchecked_mut(self.length) };
+			*ptr = MaybeUninit::new(Move::new(SQUARE, MoveDirection::BackwardLeft, false));
+			self.length += 1;
+		}
+	}
+
+	fn add_slide_backward_right<const SQUARE: usize>(&mut self, possible_moves: PossibleMoves) {
+		if (possible_moves.backward_right_movers >> SQUARE) & 1 != 0 {
+			let ptr = unsafe { self.moves.as_mut().get_unchecked_mut(self.length) };
+			*ptr = MaybeUninit::new(Move::new(SQUARE, MoveDirection::BackwardRight, false));
+			self.length += 1;
+		}
+	}
+
+	fn add_jump_forward_left<const SQUARE: usize>(&mut self, possible_moves: PossibleMoves) {
+		if (possible_moves.forward_left_movers >> SQUARE) & 1 != 0 {
+			let ptr = unsafe { self.moves.as_mut().get_unchecked_mut(self.length) };
+			*ptr = MaybeUninit::new(Move::new(SQUARE, MoveDirection::ForwardLeft, true));
+			self.length += 1;
+		}
+	}
+
+	fn add_jump_forward_right<const SQUARE: usize>(&mut self, possible_moves: PossibleMoves) {
+		if (possible_moves.forward_right_movers >> SQUARE) & 1 != 0 {
+			let ptr = unsafe { self.moves.as_mut().get_unchecked_mut(self.length) };
+			*ptr = MaybeUninit::new(Move::new(SQUARE, MoveDirection::ForwardRight, true));
+			self.length += 1;
+		}
+	}
+
+	fn add_jump_backward_left<const SQUARE: usize>(&mut self, possible_moves: PossibleMoves) {
+		if (possible_moves.backward_left_movers >> SQUARE) & 1 != 0 {
+			let ptr = unsafe { self.moves.as_mut().get_unchecked_mut(self.length) };
+			*ptr = MaybeUninit::new(Move::new(SQUARE, MoveDirection::BackwardLeft, true));
+			self.length += 1;
+		}
+	}
+
+	fn add_jump_backward_right<const SQUARE: usize>(&mut self, possible_moves: PossibleMoves) {
+		if (possible_moves.backward_right_movers >> SQUARE) & 1 != 0 {
+			let ptr = unsafe { self.moves.as_mut().get_unchecked_mut(self.length) };
+			*ptr = MaybeUninit::new(Move::new(SQUARE, MoveDirection::BackwardRight, true));
+			self.length += 1;
+		}
+	}
+}
+
+impl Iterator for PossibleMovesIter {
+	type Item = Move;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		if self.length != self.index {
+			let next_move = unsafe { self.moves.as_ref().get_unchecked(self.index).assume_init() };
+			self.index += 1;
+			Some(next_move)
+		} else {
+			None
+		}
+	}
+}
+
+impl Drop for PossibleMovesIter {
+	fn drop(&mut self) {
+		let layout = Layout::array::<MaybeUninit<Move>>(POSSIBLE_MOVES_ITER_SIZE).unwrap();
+		unsafe { dealloc(self.moves.as_ptr() as *mut u8, layout) }
+	}
+}
+
 impl IntoIterator for PossibleMoves {
 	type Item = Move;
 	type IntoIter = PossibleMovesIter;
 
 	fn into_iter(self) -> Self::IntoIter {
-		self.into()
+		let layout = Layout::array::<MaybeUninit<Move>>(POSSIBLE_MOVES_ITER_SIZE).unwrap();
+		let allocated_mem = unsafe { alloc(layout) };
+		let ptr =
+			match NonNull::new(allocated_mem as *mut [MaybeUninit<Move>; POSSIBLE_MOVES_ITER_SIZE])
+			{
+				Some(p) => p,
+				None => handle_alloc_error(layout),
+			};
+		let mut iter = PossibleMovesIter {
+			moves: ptr,
+			index: 0,
+			length: 0,
+		};
+
+		if self.can_jump() {
+			iter.add_jump_forward_left::<0>(self);
+			iter.add_jump_forward_left::<1>(self);
+			iter.add_jump_forward_left::<6>(self);
+			iter.add_jump_forward_left::<7>(self);
+			iter.add_jump_forward_left::<8>(self);
+			iter.add_jump_forward_left::<9>(self);
+			iter.add_jump_forward_left::<12>(self);
+			iter.add_jump_forward_left::<13>(self);
+			iter.add_jump_forward_left::<14>(self);
+			iter.add_jump_forward_left::<15>(self);
+			iter.add_jump_forward_left::<16>(self);
+			iter.add_jump_forward_left::<17>(self);
+			iter.add_jump_forward_left::<20>(self);
+			iter.add_jump_forward_left::<21>(self);
+			iter.add_jump_forward_left::<22>(self);
+			iter.add_jump_forward_left::<23>(self);
+			iter.add_jump_forward_left::<28>(self);
+			iter.add_jump_forward_left::<29>(self);
+
+			iter.add_jump_forward_right::<2>(self);
+			iter.add_jump_forward_right::<3>(self);
+			iter.add_jump_forward_right::<6>(self);
+			iter.add_jump_forward_right::<7>(self);
+			iter.add_jump_forward_right::<12>(self);
+			iter.add_jump_forward_right::<13>(self);
+			iter.add_jump_forward_right::<14>(self);
+			iter.add_jump_forward_right::<15>(self);
+			iter.add_jump_forward_right::<18>(self);
+			iter.add_jump_forward_right::<19>(self);
+			iter.add_jump_forward_right::<20>(self);
+			iter.add_jump_forward_right::<21>(self);
+			iter.add_jump_forward_right::<22>(self);
+			iter.add_jump_forward_right::<23>(self);
+			iter.add_jump_forward_right::<26>(self);
+			iter.add_jump_forward_right::<27>(self);
+			iter.add_jump_forward_right::<28>(self);
+			iter.add_jump_forward_right::<29>(self);
+
+			iter.add_jump_backward_left::<4>(self);
+			iter.add_jump_backward_left::<5>(self);
+			iter.add_jump_backward_left::<8>(self);
+			iter.add_jump_backward_left::<9>(self);
+			iter.add_jump_backward_left::<14>(self);
+			iter.add_jump_backward_left::<15>(self);
+			iter.add_jump_backward_left::<16>(self);
+			iter.add_jump_backward_left::<17>(self);
+			iter.add_jump_backward_left::<20>(self);
+			iter.add_jump_backward_left::<21>(self);
+			iter.add_jump_backward_left::<22>(self);
+			iter.add_jump_backward_left::<23>(self);
+			iter.add_jump_backward_left::<24>(self);
+			iter.add_jump_backward_left::<25>(self);
+			iter.add_jump_backward_left::<28>(self);
+			iter.add_jump_backward_left::<29>(self);
+			iter.add_jump_backward_left::<30>(self);
+			iter.add_jump_backward_left::<31>(self);
+
+			iter.add_jump_backward_right::<2>(self);
+			iter.add_jump_backward_right::<3>(self);
+			iter.add_jump_backward_right::<4>(self);
+			iter.add_jump_backward_right::<5>(self);
+			iter.add_jump_backward_right::<10>(self);
+			iter.add_jump_backward_right::<11>(self);
+			iter.add_jump_backward_right::<14>(self);
+			iter.add_jump_backward_right::<15>(self);
+			iter.add_jump_backward_right::<20>(self);
+			iter.add_jump_backward_right::<21>(self);
+			iter.add_jump_backward_right::<22>(self);
+			iter.add_jump_backward_right::<23>(self);
+			iter.add_jump_backward_right::<26>(self);
+			iter.add_jump_backward_right::<27>(self);
+			iter.add_jump_backward_right::<28>(self);
+			iter.add_jump_backward_right::<29>(self);
+			iter.add_jump_backward_right::<30>(self);
+			iter.add_jump_backward_right::<31>(self);
+		} else {
+			iter.add_slide_forward_left::<0>(self);
+			iter.add_slide_forward_left::<1>(self);
+			iter.add_slide_forward_left::<3>(self);
+			iter.add_slide_forward_left::<4>(self);
+			iter.add_slide_forward_left::<6>(self);
+			iter.add_slide_forward_left::<7>(self);
+			iter.add_slide_forward_left::<8>(self);
+			iter.add_slide_forward_left::<9>(self);
+			iter.add_slide_forward_left::<12>(self);
+			iter.add_slide_forward_left::<13>(self);
+			iter.add_slide_forward_left::<14>(self);
+			iter.add_slide_forward_left::<15>(self);
+			iter.add_slide_forward_left::<16>(self);
+			iter.add_slide_forward_left::<17>(self);
+			iter.add_slide_forward_left::<19>(self);
+			iter.add_slide_forward_left::<20>(self);
+			iter.add_slide_forward_left::<21>(self);
+			iter.add_slide_forward_left::<22>(self);
+			iter.add_slide_forward_left::<23>(self);
+			iter.add_slide_forward_left::<24>(self);
+			iter.add_slide_forward_left::<27>(self);
+			iter.add_slide_forward_left::<28>(self);
+			iter.add_slide_forward_left::<29>(self);
+			iter.add_slide_forward_left::<30>(self);
+
+			iter.add_slide_forward_right::<0>(self);
+			iter.add_slide_forward_right::<2>(self);
+			iter.add_slide_forward_right::<3>(self);
+			iter.add_slide_forward_right::<4>(self);
+			iter.add_slide_forward_right::<6>(self);
+			iter.add_slide_forward_right::<7>(self);
+			iter.add_slide_forward_right::<8>(self);
+			iter.add_slide_forward_right::<10>(self);
+			iter.add_slide_forward_right::<12>(self);
+			iter.add_slide_forward_right::<13>(self);
+			iter.add_slide_forward_right::<14>(self);
+			iter.add_slide_forward_right::<15>(self);
+			iter.add_slide_forward_right::<16>(self);
+			iter.add_slide_forward_right::<18>(self);
+			iter.add_slide_forward_right::<19>(self);
+			iter.add_slide_forward_right::<20>(self);
+			iter.add_slide_forward_right::<21>(self);
+			iter.add_slide_forward_right::<22>(self);
+			iter.add_slide_forward_right::<23>(self);
+			iter.add_slide_forward_right::<24>(self);
+			iter.add_slide_forward_right::<26>(self);
+			iter.add_slide_forward_right::<27>(self);
+			iter.add_slide_forward_right::<28>(self);
+			iter.add_slide_forward_right::<29>(self);
+			iter.add_slide_forward_right::<30>(self);
+
+			iter.add_slide_backward_left::<1>(self);
+			iter.add_slide_backward_left::<3>(self);
+			iter.add_slide_backward_left::<4>(self);
+			iter.add_slide_backward_left::<5>(self);
+			iter.add_slide_backward_left::<7>(self);
+			iter.add_slide_backward_left::<8>(self);
+			iter.add_slide_backward_left::<9>(self);
+			iter.add_slide_backward_left::<11>(self);
+			iter.add_slide_backward_left::<13>(self);
+			iter.add_slide_backward_left::<14>(self);
+			iter.add_slide_backward_left::<15>(self);
+			iter.add_slide_backward_left::<16>(self);
+			iter.add_slide_backward_left::<17>(self);
+			iter.add_slide_backward_left::<19>(self);
+			iter.add_slide_backward_left::<20>(self);
+			iter.add_slide_backward_left::<21>(self);
+			iter.add_slide_backward_left::<22>(self);
+			iter.add_slide_backward_left::<23>(self);
+			iter.add_slide_backward_left::<24>(self);
+			iter.add_slide_backward_left::<25>(self);
+			iter.add_slide_backward_left::<27>(self);
+			iter.add_slide_backward_left::<28>(self);
+			iter.add_slide_backward_left::<29>(self);
+			iter.add_slide_backward_left::<30>(self);
+			iter.add_slide_backward_left::<31>(self);
+
+			iter.add_slide_backward_right::<2>(self);
+			iter.add_slide_backward_right::<3>(self);
+			iter.add_slide_backward_right::<4>(self);
+			iter.add_slide_backward_right::<5>(self);
+			iter.add_slide_backward_right::<7>(self);
+			iter.add_slide_backward_right::<8>(self);
+			iter.add_slide_backward_right::<10>(self);
+			iter.add_slide_backward_right::<11>(self);
+			iter.add_slide_backward_right::<13>(self);
+			iter.add_slide_backward_right::<14>(self);
+			iter.add_slide_backward_right::<15>(self);
+			iter.add_slide_backward_right::<16>(self);
+			iter.add_slide_backward_right::<19>(self);
+			iter.add_slide_backward_right::<20>(self);
+			iter.add_slide_backward_right::<21>(self);
+			iter.add_slide_backward_right::<22>(self);
+			iter.add_slide_backward_right::<23>(self);
+			iter.add_slide_backward_right::<24>(self);
+			iter.add_slide_backward_right::<26>(self);
+			iter.add_slide_backward_right::<27>(self);
+			iter.add_slide_backward_right::<28>(self);
+			iter.add_slide_backward_right::<29>(self);
+			iter.add_slide_backward_right::<30>(self);
+			iter.add_slide_backward_right::<31>(self);
+		}
+
+		iter
 	}
 }
 

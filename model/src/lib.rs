@@ -1,7 +1,6 @@
 mod board;
 mod color;
 mod moves;
-mod moves_iter;
 mod possible_moves;
 
 pub use board::CheckersBitBoard;
