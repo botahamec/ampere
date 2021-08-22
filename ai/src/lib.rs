@@ -1,5 +1,3 @@
-use std::f32::NEG_INFINITY;
-
 pub use model::{CheckersBitBoard, Move, PieceColor, PossibleMoves};
 
 const KING_WORTH: u32 = 2;
@@ -33,9 +31,9 @@ fn eval(depth: usize, board: CheckersBitBoard) -> f32 {
 		eval_position(board)
 	} else {
 		let turn = board.turn();
-		let mut best_eval = -NEG_INFINITY;
+		let mut best_eval = f32::NEG_INFINITY;
 		for current_move in PossibleMoves::moves(board) {
-			let board = unsafe {current_move.apply_to(board)};
+			let board = unsafe { current_move.apply_to(board) };
 			let current_eval = if board.turn() != turn {
 				-eval(depth - 1, board)
 			} else {
