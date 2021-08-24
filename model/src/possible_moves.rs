@@ -4,8 +4,9 @@ use std::alloc::{alloc, dealloc, handle_alloc_error, Layout};
 use std::mem::MaybeUninit;
 use std::ptr::NonNull;
 
-const POSSIBLE_MOVES_ITER_SIZE: usize = 98;
+const POSSIBLE_MOVES_ITER_SIZE: usize = 42;
 
+/// A struct containing the possible moves in a particular checkers position
 #[derive(Copy, Clone, Debug)]
 pub struct PossibleMoves {
 	forward_left_movers: u32,
@@ -14,9 +15,15 @@ pub struct PossibleMoves {
 	backward_right_movers: u32,
 }
 
+/// An iterator of possible checkers moves for a particular position
 pub struct PossibleMovesIter {
+	/// A pointer to an array of possibly uninitialized checkers moves
 	moves: NonNull<[MaybeUninit<Move>; POSSIBLE_MOVES_ITER_SIZE]>,
+
+	/// The current index into the moves array
 	index: usize,
+
+	// The number of initialized moves in the array
 	length: usize,
 }
 
