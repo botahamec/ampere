@@ -1,5 +1,5 @@
 use crate::possible_moves::PossibleMoves;
-use crate::PieceColor;
+use crate::{Piece, PieceColor};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
@@ -122,6 +122,58 @@ impl CheckersBitBoard {
 	/// The player whose turn it is
 	pub const fn turn(self) -> PieceColor {
 		self.turn
+	}
+
+	/// Gets the piece at a given row column coordinate
+	///
+	/// # Arguments
+	///
+	/// * `row` - The row. The a file is row 0
+	/// * `col` - The column. The first rank is column 0
+	pub fn piece_at_row_col(self, row: usize, col: usize) -> Option<Piece> {
+		if row < 8 && col < 8 {
+			if row % 2 == 0 {
+				if col % 2 == 0 {
+					let value = ((18 - ((col / 2) * 6)) + ((row / 2) * 8)) % 32;
+					if self.piece_at(value) {
+						Some(Piece::new(
+							self.king_at(value).unwrap(),
+							self.color_at(value).unwrap(),
+						))
+					} else {
+						None
+					}
+				} else {
+					None
+				}
+			} else {
+				if col % 2 == 1 {
+					let column_value = match col {
+						1 => 19,
+						3 => 13,
+						5 => 7,
+						7 => 1,
+						_ => unreachable!(),
+					};
+					let row_value = match row {
+						1 => 0,
+						3 => 8,
+						5 => 16,
+						7 => 24,
+						_ => unreachable!(),
+					};
+					let value = (column_value + row_value) % 32;
+					Some(Piece::new(
+						self.king_at(value).unwrap(),
+						self.color_at(value).unwrap(),
+					))
+				} else {
+					None
+				}
+			}
+		} else {
+			None
+		}
 	}
 
 	/// Checks if there's a piece at the given space value
@@ -546,14 +598,14 @@ impl CheckersBitBoard {
 			.move_piece_backward_unchecked(value, 2)
 			.clear_piece(value.wrapping_sub(1) & 31);
 
-			const KING_MASK: u32 = 0b00000000000010000010000010000010;
-			if PossibleMoves::has_jumps(board.flip_turn())
-				&& not_king && (((1 << value) & KING_MASK) == 0)
-			{
-				board.flip_turn()
-			} else {
-				board
-			}
+		const KING_MASK: u32 = 0b00000000000010000010000010000010;
+		if PossibleMoves::has_jumps(board.flip_turn())
+			&& not_king && (((1 << value) & KING_MASK) == 0)
+		{
+			board.flip_turn()
+		} else {
+			board
+		}
 	}
 
 	/// Tries to move the piece backward and to the right, without checking if it's a legal move.
