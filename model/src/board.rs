@@ -124,25 +124,38 @@ impl CheckersBitBoard {
 		self.turn
 	}
 
+	/// Get the piece at the given square
+	///
+	/// # Arguments
+	///
+	/// * `value` - The square to get the piece from
+	///
+	/// # Panics
+	///
+	/// Panics if value >= 32
+	const fn get(self, value: usize) -> Option<Piece> {
+		if self.piece_at(value) {
+			Some(Piece::new(
+				unsafe { self.king_at_unchecked(value) },
+				unsafe { self.color_at_unchecked(value) },
+			))
+		} else {
+			None
+		}
+	}
+
 	/// Gets the piece at a given row column coordinate
 	///
 	/// # Arguments
 	///
 	/// * `row` - The row. The a file is row 0
 	/// * `col` - The column. The first rank is column 0
-	pub fn piece_at_row_col(self, row: usize, col: usize) -> Option<Piece> {
+	pub fn get_at_row_col(self, row: usize, col: usize) -> Option<Piece> {
 		if row < 8 && col < 8 {
 			if row % 2 == 0 {
 				if col % 2 == 0 {
 					let value = ((18 - ((col / 2) * 6)) + ((row / 2) * 8)) % 32;
-					if self.piece_at(value) {
-						Some(Piece::new(
-							self.king_at(value).unwrap(),
-							self.color_at(value).unwrap(),
-						))
-					} else {
-						None
-					}
+					self.get(value)
 				} else {
 					None
 				}
@@ -163,10 +176,7 @@ impl CheckersBitBoard {
 						_ => unreachable!(),
 					};
 					let value = (column_value + row_value) % 32;
-					Some(Piece::new(
-						self.king_at(value).unwrap(),
-						self.color_at(value).unwrap(),
-					))
+					self.get(value)
 				} else {
 					None
 				}
