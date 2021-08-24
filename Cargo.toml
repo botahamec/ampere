@@ -2,7 +2,8 @@
 members = [
 	"model",
 	"ai",
-	"cli"
+	"cli",
+	"ui"
 ]
 
 [profile.release]

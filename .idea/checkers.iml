@@ -6,6 +6,7 @@
       <sourceFolder url="file://$MODULE_DIR$/model/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/ai/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/cli/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/ui/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
