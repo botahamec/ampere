@@ -1,5 +1,5 @@
 use crate::possible_moves::PossibleMoves;
-use crate::{Piece, PieceColor};
+use crate::{Piece, PieceColor, SquareCoordinate};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
@@ -124,26 +124,6 @@ impl CheckersBitBoard {
 		self.turn
 	}
 
-	/// Get the piece at the given square
-	///
-	/// # Arguments
-	///
-	/// * `value` - The square to get the piece from
-	///
-	/// # Panics
-	///
-	/// Panics if value >= 32
-	const fn get(self, value: usize) -> Option<Piece> {
-		if self.piece_at(value) {
-			Some(Piece::new(
-				unsafe { self.king_at_unchecked(value) },
-				unsafe { self.color_at_unchecked(value) },
-			))
-		} else {
-			None
-		}
-	}
-
 	/// Gets the piece at a given row column coordinate
 	///
 	/// # Arguments
@@ -151,38 +131,22 @@ impl CheckersBitBoard {
 	/// * `row` - The row. The a file is row 0
 	/// * `col` - The column. The first rank is column 0
 	pub fn get_at_row_col(self, row: usize, col: usize) -> Option<Piece> {
-		if row < 8 && col < 8 {
-			if row % 2 == 0 {
-				if col % 2 == 0 {
-					let value = ((18 - ((col / 2) * 6)) + ((row / 2) * 8)) % 32;
-					self.get(value)
+		if row > 32 || col > 32 {
+			None
+		} else {
+			let value = SquareCoordinate::new(row as u8, col as u8).to_value();
+			if let Some(value) = value {
+				if self.piece_at(value) {
+					Some(Piece::new(
+						unsafe { self.king_at_unchecked(value) },
+						unsafe { self.color_at_unchecked(value) },
+					))
 				} else {
 					None
 				}
 			} else {
-				if col % 2 == 1 {
-					let column_value = match col {
-						1 => 19,
-						3 => 13,
-						5 => 7,
-						7 => 1,
-						_ => unreachable!(),
-					};
-					let row_value = match row {
-						1 => 0,
-						3 => 8,
-						5 => 16,
-						7 => 24,
-						_ => unreachable!(),
-					};
-					let value = (column_value + row_value) % 32;
-					self.get(value)
-				} else {
-					None
-				}
+				None
 			}
-		} else {
-			None
 		}
 	}
 
