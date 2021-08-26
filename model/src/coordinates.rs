@@ -72,7 +72,7 @@ impl SquareCoordinate {
 					7 => 1,
 					_ => unreachable!(),
 				};
-				let row_value = match self.file {
+				let row_value = match self.rank {
 					1 => 0,
 					3 => 8,
 					5 => 16,
