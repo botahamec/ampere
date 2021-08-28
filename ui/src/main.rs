@@ -1,7 +1,8 @@
-use model::{CheckersBitBoard, PieceColor};
+use model::{CheckersBitBoard, PieceColor, PossibleMoves, SquareCoordinate};
 use tetra::graphics::{self, Color, DrawParams, Texture};
+use tetra::input::MouseButton;
 use tetra::math::Vec2;
-use tetra::{Context, ContextBuilder, State};
+use tetra::{input, Context, ContextBuilder, State};
 
 const WINDOW_WIDTH: f32 = 640.0;
 const WINDOW_HEIGHT: f32 = 480.0;
@@ -9,27 +10,69 @@ const DARK_SLATE_BLUE: Color = Color::rgb(0.2823529, 0.2392157, 0.5450980);
 
 struct GameState {
 	chess_board: Texture,
+	possible_move_square: Texture,
 	dark_piece: Texture,
 	light_piece: Texture,
 	dark_king: Texture,
 	light_king: Texture,
 	bit_board: CheckersBitBoard,
+	selected_square: Option<SquareCoordinate>,
+	possible_moves: Vec<SquareCoordinate>,
 }
 
 impl GameState {
 	fn new(ctx: &mut Context) -> tetra::Result<Self> {
 		Ok(GameState {
 			chess_board: Texture::new(ctx, "./ui/resources/chess_board.png")?,
+			possible_move_square: Texture::new(ctx, "./ui/resources/possible_move.png")?,
 			dark_piece: Texture::new(ctx, "./ui/resources/red_piece.png")?,
 			light_piece: Texture::new(ctx, "./ui/resources/white_piece.png")?,
 			dark_king: Texture::new(ctx, "./ui/resources/red_king.png")?,
 			light_king: Texture::new(ctx, "./ui/resources/white_king.png")?,
 			bit_board: CheckersBitBoard::starting_position(),
+			selected_square: None,
+			possible_moves: Vec::new(),
 		})
 	}
 }
 
+impl GameState {
+	fn draw_highlighted_square(&self, ctx: &mut Context, square: SquareCoordinate) {
+		let square_draw_params = DrawParams::new()
+			.position(Vec2::new(
+				120.0 + (50.0 * square.file() as f32),
+				390.0 - (50.0 * square.rank() as f32),
+			))
+			.scale(Vec2::new(0.5, 0.5));
+
+		self.possible_move_square.draw(ctx, square_draw_params);
+	}
+}
+
 impl State for GameState {
+	fn update(&mut self, ctx: &mut Context) -> tetra::Result {
+		if input::is_mouse_button_released(ctx, MouseButton::Left) {
+			let x = input::get_mouse_x(ctx);
+			let y = input::get_mouse_y(ctx);
+
+			if x > 120.0 && y > 40.0 && x < 520.0 && y < 440.0 {
+				let file = ((x - 140.0) / 50.0).round();
+				let rank = ((410.0 - y) / 50.0).round();
+				let square = SquareCoordinate::new(rank as u8, file as u8);
+				self.selected_square = Some(square);
+
+				let moves = PossibleMoves::moves(self.bit_board);
+				self.possible_moves = moves
+					.into_iter()
+					.filter(|m| SquareCoordinate::from_value(m.start() as usize) == square)
+					.map(|m| SquareCoordinate::from_value(m.end_position()))
+					.collect()
+			}
+		}
+
+		Ok(())
+	}
+
 	fn draw(&mut self, ctx: &mut Context) -> tetra::Result {
 		graphics::clear(ctx, DARK_SLATE_BLUE);
 
@@ -38,6 +81,14 @@ impl State for GameState {
 			.scale(Vec2::new(0.4938272, 0.4938272));
 
 		self.chess_board.draw(ctx, board_draw_params);
+
+		if let Some(square) = self.selected_square {
+			self.draw_highlighted_square(ctx, square);
+		}
+
+		for square in &self.possible_moves {
+			self.draw_highlighted_square(ctx, *square);
+		}
 
 		for row in 0..8 {
 			for col in 0..8 {

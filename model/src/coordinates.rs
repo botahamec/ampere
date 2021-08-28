@@ -7,7 +7,7 @@ pub struct SquareCoordinate {
 }
 
 impl SquareCoordinate {
-	pub(crate) fn new(rank: u8, file: u8) -> Self {
+	pub fn new(rank: u8, file: u8) -> Self {
 		if rank > 32 {
 			panic!("A Square cannot have a rank greater than 32. Got {}", rank)
 		} else if file > 32 {
@@ -54,6 +54,14 @@ impl SquareCoordinate {
 		];
 
 		VALUE_COORDINATE_MAP[value]
+	}
+
+	pub fn rank(self) -> u8 {
+		self.rank
+	}
+
+	pub fn file(self) -> u8 {
+		self.file
 	}
 
 	pub fn to_value(self) -> Option<usize> {

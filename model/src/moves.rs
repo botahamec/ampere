@@ -38,6 +38,29 @@ impl Move {
 		}
 	}
 
+	pub const fn start(self) -> u32 {
+		self.start
+	}
+
+	/// Calculates the value of the end position of the move
+	pub const fn end_position(self) -> usize {
+		let dest = match self.jump {
+			false => match self.direction {
+				MoveDirection::ForwardLeft => self.start + 7,
+				MoveDirection::ForwardRight => self.start + 1,
+				MoveDirection::BackwardLeft => self.start - 1,
+				MoveDirection::BackwardRight => self.start - 7,
+			},
+			true => match self.direction {
+				MoveDirection::ForwardLeft => self.start + 14,
+				MoveDirection::ForwardRight => self.start + 2,
+				MoveDirection::BackwardLeft => self.start - 2,
+				MoveDirection::BackwardRight => self.start - 14,
+			},
+		};
+		dest as usize
+	}
+
 	/// Apply the move to a board. This does not mutate the original board,
 	/// but instead returns a new one.
 	///
@@ -92,10 +115,10 @@ impl Move {
 #[cfg(test)]
 mod tests {
 
-	use proptest::prelude::*;
 	use super::*;
+	use proptest::prelude::*;
 
-	proptest!{
+	proptest! {
 		#[test]
 		fn new(start in 0usize..32, jump in proptest::bool::ANY) {
 			let direction = MoveDirection::ForwardLeft;
