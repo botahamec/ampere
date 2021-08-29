@@ -496,7 +496,7 @@ impl PossibleMoves {
 				not_occupied.rotate_left(14) & enemy_pieces.rotate_left(7) & BACKWARD_RIGHT_MASK;
 			let backward_spaces = backward_left_spaces | backward_right_spaces;
 
-			let forward_spaces = board.king_bits() & backward_spaces;
+			let backward_spaces = board.king_bits() & backward_spaces;
 			friendly_pieces & (forward_spaces | backward_spaces) != 0
 		} else {
 			friendly_pieces & forward_spaces != 0

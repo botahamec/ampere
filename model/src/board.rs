@@ -76,6 +76,7 @@ impl CheckersBitBoard {
 	///                                   0,
 	///                                   PieceColor::Dark);
 	/// ```
+	#[must_use]
 	pub const fn new(pieces: u32, color: u32, kings: u32, turn: PieceColor) -> Self {
 		Self {
 			pieces,
@@ -86,6 +87,7 @@ impl CheckersBitBoard {
 	}
 
 	/// Creates a board at the starting position
+	#[must_use]
 	pub const fn starting_position() -> Self {
 		const STARTING_BITBOARD: CheckersBitBoard = CheckersBitBoard::new(
 			0b11100111100111100111110111111011,
@@ -97,6 +99,7 @@ impl CheckersBitBoard {
 	}
 
 	/// Gets the bits that represent where pieces are on the board
+	#[must_use]
 	pub const fn pieces_bits(self) -> u32 {
 		self.pieces
 	}
@@ -106,6 +109,7 @@ impl CheckersBitBoard {
 	/// # Safety
 	///
 	/// This is inherently unsafe, because this also returns the bits of empty squares
+	#[must_use]
 	pub const fn color_bits(self) -> u32 {
 		self.color
 	}
@@ -115,11 +119,13 @@ impl CheckersBitBoard {
 	/// # Safety
 	///
 	/// This is inherently unsafe, because this also returns the bits of empty squares
+	#[must_use]
 	pub const fn king_bits(self) -> u32 {
 		self.kings
 	}
 
 	/// The player whose turn it is
+	#[must_use]
 	pub const fn turn(self) -> PieceColor {
 		self.turn
 	}
@@ -130,6 +136,7 @@ impl CheckersBitBoard {
 	///
 	/// * `row` - The row. The a file is row 0
 	/// * `col` - The column. The first rank is column 0
+	#[must_use]
 	pub fn get_at_row_col(self, row: usize, col: usize) -> Option<Piece> {
 		if row > 32 || col > 32 {
 			None
@@ -170,6 +177,7 @@ impl CheckersBitBoard {
 	/// # Panics
 	///
 	/// Panics if `value` is greater than or equal to 32
+	#[must_use]
 	pub const fn piece_at(self, value: usize) -> bool {
 		((self.pieces >> value) & 1) == 1
 	}
@@ -202,6 +210,7 @@ impl CheckersBitBoard {
 	/// # Safety
 	///
 	/// Checking the color at a square that is empty results in undefined behavior
+	#[must_use]
 	pub const unsafe fn color_at_unchecked(self, value: usize) -> PieceColor {
 		if ((self.color >> value) & 1) != 0 {
 			PieceColor::Dark
@@ -234,6 +243,7 @@ impl CheckersBitBoard {
 	/// # Panics
 	///
 	/// Panics if `value` is greater than or equal to 32
+	#[must_use]
 	pub const fn color_at(self, value: usize) -> Option<PieceColor> {
 		if self.piece_at(value) {
 			// safety: if this block runs, then it's already confirmed a piece exists here
@@ -269,6 +279,7 @@ impl CheckersBitBoard {
 	/// # Safety
 	///
 	/// Checking a square that is empty results in undefined behavior
+	#[must_use]
 	pub const unsafe fn king_at_unchecked(self, value: usize) -> bool {
 		((self.kings >> value) & 1) == 1
 	}
@@ -296,6 +307,7 @@ impl CheckersBitBoard {
 	/// # Panics
 	///
 	/// Panics if `value` is greater than or equal to 32
+	#[must_use]
 	pub const fn king_at(self, value: usize) -> Option<bool> {
 		if self.piece_at(value) {
 			// safety: if this block runs, then it's already confirmed a piece exists here
@@ -305,6 +317,8 @@ impl CheckersBitBoard {
 		}
 	}
 
+	/// Change whose turn it is, without modifying the board
+	#[must_use]
 	pub const fn flip_turn(self) -> Self {
 		CheckersBitBoard::new(self.pieces, self.color, self.kings, self.turn.flip())
 	}
@@ -326,6 +340,7 @@ impl CheckersBitBoard {
 	///
 	/// Results in undefined behavior if `start` does not contain a piece
 	// TODO rip out so we don't need to check for both black and white promotion
+	#[must_use]
 	pub const unsafe fn move_piece_to_unchecked(self, start: usize, dest: usize) -> Self {
 		// Clears the bit at the starting value
 		// Sets the bit at the destination value
@@ -368,6 +383,7 @@ impl CheckersBitBoard {
 	/// # Safety
 	///
 	/// This results in undefined behavior if `value` does not contain a piece
+	#[must_use]
 	const unsafe fn move_piece_forward_unchecked(self, value: usize, amount: usize) -> Self {
 		self.move_piece_to_unchecked(value, (value + amount) & 31)
 	}
@@ -388,6 +404,7 @@ impl CheckersBitBoard {
 	/// # Safety
 	///
 	/// This results in undefined behavior if `value` does not contain a piece
+	#[must_use]
 	const unsafe fn move_piece_backward_unchecked(self, value: usize, amount: usize) -> Self {
 		self.move_piece_to_unchecked(value, value.wrapping_sub(amount) & 31)
 	}
@@ -408,6 +425,7 @@ impl CheckersBitBoard {
 	/// Moving from the left side of the board results in undefined behavior.
 	/// Moving from the top of the board results in undefined behavior.
 	/// A `value` which doesn't contain a piece results in undefined behavior.
+	#[must_use]
 	pub const unsafe fn move_piece_forward_left_unchecked(self, value: usize) -> Self {
 		self.move_piece_forward_unchecked(value, 7)
 	}
@@ -428,6 +446,7 @@ impl CheckersBitBoard {
 	/// Moving from the right side of the board results in undefined behavior.
 	/// Moving from the top of the board results in undefined behavior.
 	/// A `value` which doesn't contain a piece results in undefined behavior.
+	#[must_use]
 	pub const unsafe fn move_piece_forward_right_unchecked(self, value: usize) -> Self {
 		self.move_piece_forward_unchecked(value, 1)
 	}
@@ -448,6 +467,7 @@ impl CheckersBitBoard {
 	/// Moving from the left side of the board results in undefined behavior.
 	/// Moving from the bottom of the board results in undefined behavior.
 	/// A `value` which doesn't contain a piece results in undefined behavior.
+	#[must_use]
 	pub const unsafe fn move_piece_backward_left_unchecked(self, value: usize) -> Self {
 		self.move_piece_backward_unchecked(value, 1)
 	}
@@ -468,6 +488,7 @@ impl CheckersBitBoard {
 	/// Moving from the right side of the board results in undefined behavior.
 	/// Moving from the bottom of the board results in undefined behavior.
 	/// A `value` which doesn't contain a piece results in undefined behavior.
+	#[must_use]
 	pub const unsafe fn move_piece_backward_right_unchecked(self, value: usize) -> Self {
 		self.move_piece_backward_unchecked(value, 7)
 	}
@@ -481,6 +502,7 @@ impl CheckersBitBoard {
 	/// # Panics
 	///
 	/// Panics if `value` is greater than or equal to 32
+	#[must_use]
 	pub const fn clear_piece(self, value: usize) -> Self {
 		let pieces = self.pieces & !(1 << value);
 		CheckersBitBoard::new(pieces, self.color, self.kings, self.turn)
@@ -502,15 +524,16 @@ impl CheckersBitBoard {
 	///
 	/// Moving from the left side of the board results in undefined behavior.
 	/// Moving from the top of the board results in undefined behavior
+	#[must_use]
 	pub const unsafe fn jump_piece_forward_left_unchecked(self, value: usize) -> Self {
-		let not_king = !self.king_at_unchecked(value);
+		let is_king = self.king_at_unchecked(value);
 		let board = self
 			.move_piece_forward_unchecked(value, 14)
 			.clear_piece((value + 7) & 31);
 
-		const KING_MASK: u32 = 0b01000001000000000000010000010000;
-		if PossibleMoves::has_jumps(board.flip_turn())
-			&& not_king && (((1 << value) & KING_MASK) == 0)
+		const KING_MASK: u32 = 0b00100000100000100000000000001000;
+		if (is_king || (((1 << value) & KING_MASK) == 0))
+			&& PossibleMoves::has_jumps(board.flip_turn())
 		{
 			board.flip_turn()
 		} else {
@@ -534,15 +557,16 @@ impl CheckersBitBoard {
 	///
 	/// Moving from the right side of the board results in undefined behavior.
 	/// Moving from the top of the board results in undefined behavior
+	#[must_use]
 	pub const unsafe fn jump_piece_forward_right_unchecked(self, value: usize) -> Self {
-		let not_king = !self.king_at_unchecked(value);
+		let is_king = self.king_at_unchecked(value);
 		let board = self
 			.move_piece_forward_unchecked(value, 2)
 			.clear_piece((value + 1) & 31);
 
-		const KING_MASK: u32 = 0b01000001000000000000010000010000;
-		if PossibleMoves::has_jumps(board.flip_turn())
-			&& not_king && (((1 << value) & KING_MASK) == 0)
+		const KING_MASK: u32 = 0b00100000100000100000000000001000;
+		if (is_king || (((1 << value) & KING_MASK) == 0))
+			&& PossibleMoves::has_jumps(board.flip_turn())
 		{
 			board.flip_turn()
 		} else {
@@ -566,15 +590,16 @@ impl CheckersBitBoard {
 	///
 	/// Moving from the left side of the board results in undefined behavior.
 	/// Moving from the bottom of the board results in undefined behavior
+	#[must_use]
 	pub const unsafe fn jump_piece_backward_left_unchecked(self, value: usize) -> Self {
-		let not_king = !self.king_at_unchecked(value);
+		let is_king = self.king_at_unchecked(value);
 		let board = self
 			.move_piece_backward_unchecked(value, 2)
 			.clear_piece(value.wrapping_sub(1) & 31);
 
-		const KING_MASK: u32 = 0b00000000000010000010000010000010;
-		if PossibleMoves::has_jumps(board.flip_turn())
-			&& not_king && (((1 << value) & KING_MASK) == 0)
+		const KING_MASK: u32 = 0b00000100000100000100000100000000;
+		if (is_king || (((1 << value) & KING_MASK) == 0))
+			&& PossibleMoves::has_jumps(board.flip_turn())
 		{
 			board.flip_turn()
 		} else {
@@ -598,15 +623,16 @@ impl CheckersBitBoard {
 	///
 	/// Moving from the right side of the board results in undefined behavior.
 	/// Moving from the bottom of the board results in undefined behavior
+	#[must_use]
 	pub const unsafe fn jump_piece_backward_right_unchecked(self, value: usize) -> Self {
-		let not_king = !self.king_at_unchecked(value);
+		let is_king = self.king_at_unchecked(value);
 		let board = self
 			.move_piece_backward_unchecked(value, 14)
 			.clear_piece(value.wrapping_sub(7) & 31);
 
-		const KING_MASK: u32 = 0b00000000000010000010000010000010;
-		if PossibleMoves::has_jumps(board.flip_turn())
-			&& not_king && (((1 << value) & KING_MASK) == 0)
+		const KING_MASK: u32 = 0b00000100000100000100000100000000;
+		if (is_king || (((1 << value) & KING_MASK) == 0))
+			&& PossibleMoves::has_jumps(board.flip_turn())
 		{
 			board.flip_turn()
 		} else {
