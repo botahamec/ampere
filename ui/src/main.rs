@@ -1,4 +1,5 @@
-use model::{CheckersBitBoard, PieceColor, PossibleMoves, SquareCoordinate};
+use model::{CheckersBitBoard, Move, PieceColor, PossibleMoves, SquareCoordinate};
+use std::collections::HashSet;
 use tetra::graphics::{self, Color, DrawParams, Texture};
 use tetra::input::MouseButton;
 use tetra::math::Vec2;
@@ -17,7 +18,7 @@ struct GameState {
 	light_king: Texture,
 	bit_board: CheckersBitBoard,
 	selected_square: Option<SquareCoordinate>,
-	possible_moves: Vec<SquareCoordinate>,
+	possible_moves: HashSet<Move>,
 }
 
 impl GameState {
@@ -31,7 +32,7 @@ impl GameState {
 			light_king: Texture::new(ctx, "./ui/resources/white_king.png")?,
 			bit_board: CheckersBitBoard::starting_position(),
 			selected_square: None,
-			possible_moves: Vec::new(),
+			possible_moves: HashSet::new(),
 		})
 	}
 }
@@ -59,14 +60,32 @@ impl State for GameState {
 				let file = ((x - 140.0) / 50.0).round();
 				let rank = ((410.0 - y) / 50.0).round();
 				let square = SquareCoordinate::new(rank as u8, file as u8);
-				self.selected_square = Some(square);
 
-				let moves = PossibleMoves::moves(self.bit_board);
-				self.possible_moves = moves
+				if (&self.possible_moves)
 					.into_iter()
-					.filter(|m| SquareCoordinate::from_value(m.start() as usize) == square)
 					.map(|m| SquareCoordinate::from_value(m.end_position()))
-					.collect()
+					.collect::<HashSet<SquareCoordinate>>()
+					.contains(&square)
+				{
+					let selected_move = (&self.possible_moves)
+						.into_iter()
+						.find(|m| SquareCoordinate::from_value(m.end_position()) == square)
+						.unwrap();
+
+					// safety: this was determined to be in the list of possible moves
+					self.bit_board = unsafe { selected_move.apply_to(self.bit_board) };
+
+					self.selected_square = None;
+					self.possible_moves.clear();
+				} else {
+					self.selected_square = Some(square);
+
+					let moves = PossibleMoves::moves(self.bit_board);
+					self.possible_moves = moves
+						.into_iter()
+						.filter(|m| SquareCoordinate::from_value(m.start() as usize) == square)
+						.collect();
+				}
 			}
 		}
 
@@ -86,8 +105,11 @@ impl State for GameState {
 			self.draw_highlighted_square(ctx, square);
 		}
 
-		for square in &self.possible_moves {
-			self.draw_highlighted_square(ctx, *square);
+		for possible_move in &self.possible_moves {
+			self.draw_highlighted_square(
+				ctx,
+				SquareCoordinate::from_value(possible_move.end_position()),
+			);
 		}
 
 		for row in 0..8 {

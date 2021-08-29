@@ -1,6 +1,6 @@
 use crate::CheckersBitBoard;
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum MoveDirection {
 	ForwardLeft = 0,
 	ForwardRight = 1,
@@ -9,7 +9,7 @@ pub enum MoveDirection {
 }
 
 /// A checkers move
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Move {
 	/// The position of the piece to move
 	start: u32,
@@ -46,16 +46,16 @@ impl Move {
 	pub const fn end_position(self) -> usize {
 		let dest = match self.jump {
 			false => match self.direction {
-				MoveDirection::ForwardLeft => self.start + 7,
-				MoveDirection::ForwardRight => self.start + 1,
-				MoveDirection::BackwardLeft => self.start - 1,
-				MoveDirection::BackwardRight => self.start - 7,
+				MoveDirection::ForwardLeft => (self.start + 7) % 32,
+				MoveDirection::ForwardRight => (self.start + 1) % 32,
+				MoveDirection::BackwardLeft => self.start.wrapping_sub(1) % 32,
+				MoveDirection::BackwardRight => self.start.wrapping_sub(7) % 32,
 			},
 			true => match self.direction {
-				MoveDirection::ForwardLeft => self.start + 14,
-				MoveDirection::ForwardRight => self.start + 2,
-				MoveDirection::BackwardLeft => self.start - 2,
-				MoveDirection::BackwardRight => self.start - 14,
+				MoveDirection::ForwardLeft => (self.start + 14) % 32,
+				MoveDirection::ForwardRight => (self.start + 2) % 32,
+				MoveDirection::BackwardLeft => self.start.wrapping_sub(2) % 32,
+				MoveDirection::BackwardRight => self.start.wrapping_sub(14) % 32,
 			},
 		};
 		dest as usize
