@@ -30,7 +30,6 @@ impl Move {
 	/// * `direction` - The direction the piece should move in
 	/// * `jump` - Whether or not the piece should jump
 	pub const fn new(start: usize, direction: MoveDirection, jump: bool) -> Self {
-		// TODO what are the semantics of usize as u32?
 		Self {
 			start: start as u32,
 			direction,
@@ -38,8 +37,19 @@ impl Move {
 		}
 	}
 
+	/// The stating position of the move
 	pub const fn start(self) -> u32 {
 		self.start
+	}
+
+	/// The direction the move goes in
+	pub const fn direction(self) -> MoveDirection {
+		self.direction
+	}
+
+	/// Returns `true` if the move is a jump
+	pub const fn is_jump(self) -> bool {
+		self.jump
 	}
 
 	/// Calculates the value of the end position of the move
@@ -145,5 +155,102 @@ mod tests {
 			assert_eq!(move_test.direction, direction);
 			assert_eq!(move_test.jump, jump);
 		}
+
+		#[test]
+		fn start(start in 0usize..32, jump in proptest::bool::ANY) {
+			let direction = MoveDirection::ForwardLeft;
+			let move_test = Move::new(start, direction, jump);
+			assert_eq!(move_test.start(), start as u32);
+		}
+
+		#[test]
+		fn direction(start in 0usize..32, jump in proptest::bool::ANY) {
+			let direction = MoveDirection::ForwardLeft;
+			let move_test = Move::new(start, direction, jump);
+			assert_eq!(move_test.direction(), direction);
+
+			let direction = MoveDirection::ForwardRight;
+			let move_test = Move::new(start, direction, jump);
+			assert_eq!(move_test.direction(), direction);
+
+			let direction = MoveDirection::BackwardLeft;
+			let move_test = Move::new(start, direction, jump);
+			assert_eq!(move_test.direction(), direction);
+
+			let direction = MoveDirection::BackwardRight;
+			let move_test = Move::new(start, direction, jump);
+			assert_eq!(move_test.direction(), direction);
+		}
+
+		#[test]
+		fn is_jump(start in 0usize..32, jump in proptest::bool::ANY) {
+			let direction = MoveDirection::ForwardLeft;
+			let move_test = Move::new(start, direction, jump);
+			assert_eq!(move_test.is_jump(), jump);
+		}
+	}
+
+	#[test]
+	fn end_position_forward_left_slide() {
+		let direction = MoveDirection::ForwardLeft;
+		let start = 8;
+		let move_test = Move::new(start, direction, false);
+		assert_eq!(move_test.end_position(), 15);
+	}
+
+	#[test]
+	fn end_position_forward_right_slide() {
+		let direction = MoveDirection::ForwardRight;
+		let start = 26;
+		let move_test = Move::new(start, direction, false);
+		assert_eq!(move_test.end_position(), 27);
+	}
+
+	#[test]
+	fn end_position_backward_right_slide() {
+		let direction = MoveDirection::BackwardRight;
+		let start = 2;
+		let move_test = Move::new(start, direction, false);
+		assert_eq!(move_test.end_position(), 27);
+	}
+
+	#[test]
+	fn end_position_backward_left_slide() {
+		let direction = MoveDirection::BackwardLeft;
+		let start = 16;
+		let move_test = Move::new(start, direction, false);
+		assert_eq!(move_test.end_position(), 15);
+	}
+
+	#[test]
+	fn end_position_forward_left_jump() {
+		let direction = MoveDirection::ForwardLeft;
+		let start = 8;
+		let move_test = Move::new(start, direction, true);
+		assert_eq!(move_test.end_position(), 22);
+	}
+
+	#[test]
+	fn end_position_forward_right_jump() {
+		let direction = MoveDirection::ForwardRight;
+		let start = 26;
+		let move_test = Move::new(start, direction, true);
+		assert_eq!(move_test.end_position(), 28);
+	}
+
+	#[test]
+	fn end_position_backward_right_jump() {
+		let direction = MoveDirection::BackwardRight;
+		let start = 2;
+		let move_test = Move::new(start, direction, true);
+		assert_eq!(move_test.end_position(), 20);
+	}
+
+	#[test]
+	fn end_position_backward_left_jump() {
+		let direction = MoveDirection::BackwardLeft;
+		let start = 16;
+		let move_test = Move::new(start, direction, true);
+		assert_eq!(move_test.end_position(), 14);
 	}
 }

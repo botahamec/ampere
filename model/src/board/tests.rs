@@ -64,7 +64,9 @@ proptest! {
 			kings: k,
 			turn: PieceColor::Dark
 		};
-		board.piece_at(v);
+
+		// just test for no crash
+		let _ = board.piece_at(v);
 	}
 
 	#[test]
@@ -75,7 +77,9 @@ proptest! {
 			kings: k,
 			turn: PieceColor::Dark
 		};
-		unsafe {board.color_at_unchecked(v);}
+
+		// just test for no crash
+		unsafe {let _ = board.color_at_unchecked(v);}
 	}
 
 	#[test]
@@ -86,7 +90,7 @@ proptest! {
 			kings: k,
 			turn: PieceColor::Dark
 		};
-		unsafe {board.king_at_unchecked(v);}
+		unsafe {let _ = board.king_at_unchecked(v);}
 	}
 
 	#[test]
@@ -97,7 +101,9 @@ proptest! {
 			kings: k,
 			turn: PieceColor::Dark
 		};
-		board.color_at(v);
+
+		// just testing for no crash
+		let _  = board.color_at(v);
 	}
 
 	#[test]
@@ -108,7 +114,9 @@ proptest! {
 			kings: k,
 			turn: PieceColor::Dark
 		};
-		board.king_at(v);
+
+		// just testing for no crash
+		let _ = board.king_at(v);
 	}
 
 	#[test]
@@ -555,12 +563,11 @@ fn test_move_piece_forward_standard() {
 #[test]
 fn test_move_piece_forward_wrap() {
 	let board = CheckersBitBoard::default();
-	let board = unsafe { board.move_piece_forward_unchecked(31, 10) }; // go to 9
-	assert!(!board.piece_at(31));
-	assert!(board.piece_at(9));
-	// TODO always move a dark squared piece
-	assert_eq!(board.color_at(9).unwrap(), PieceColor::Light);
-	assert!(!board.king_at(9).unwrap());
+	let board = unsafe { board.move_piece_forward_unchecked(26, 8) }; // go to 9
+	assert!(!board.piece_at(26));
+	assert!(board.piece_at(2));
+	assert_eq!(board.color_at(2).unwrap(), PieceColor::Dark);
+	assert!(!board.king_at(2).unwrap());
 	assert_eq!(board.turn, PieceColor::Light);
 }
 
@@ -582,13 +589,13 @@ fn test_move_piece_backward_left_to_king() {
 
 #[test]
 fn test_move_piece_backward_standard() {
-	let board = CheckersBitBoard::default();
+	let board = CheckersBitBoard::default().flip_turn();
 	let board = unsafe { board.move_piece_backward_unchecked(29, 14) }; // go to 15
 	assert!(!board.piece_at(29));
 	assert!(board.piece_at(15));
 	assert_eq!(board.color_at(15).unwrap(), PieceColor::Light);
 	assert!(!board.king_at(15).unwrap());
-	assert_eq!(board.turn, PieceColor::Light);
+	assert_eq!(board.turn, PieceColor::Dark);
 }
 
 #[test]

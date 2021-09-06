@@ -4,6 +4,7 @@ use std::alloc::{alloc, dealloc, handle_alloc_error, Layout};
 use std::mem::MaybeUninit;
 use std::ptr::NonNull;
 
+// The maximum number of available moves in any given position
 const POSSIBLE_MOVES_ITER_SIZE: usize = 42;
 
 /// A struct containing the possible moves in a particular checkers position
@@ -118,6 +119,7 @@ impl IntoIterator for PossibleMoves {
 	type Item = Move;
 	type IntoIter = PossibleMovesIter;
 
+	// TODO test
 	fn into_iter(self) -> Self::IntoIter {
 		let layout = Layout::array::<MaybeUninit<Move>>(POSSIBLE_MOVES_ITER_SIZE).unwrap();
 		let allocated_mem = unsafe { alloc(layout) };
@@ -318,7 +320,9 @@ impl IntoIterator for PossibleMoves {
 }
 
 impl PossibleMoves {
+	// TODO test
 	const fn slides_dark(board: CheckersBitBoard) -> Self {
+		// TODO maybe remove these?
 		const FORWARD_LEFT_MASK: u32 = 0b01111001111110111111001111011011;
 		const FORWARD_RIGHT_MASK: u32 = 0b01111101111111011111010111011101;
 		const BACKWARD_LEFT_MASK: u32 = 0b11111011111110111110101110111010;
@@ -582,38 +586,53 @@ impl PossibleMoves {
 	pub const fn can_jump(self) -> bool {
 		(self.backward_right_movers & 2) != 0
 	}
-
-	/// Returns the pieces who can move forward left,
-	/// with undefined behavior for bits where a forward left move is impossible
-	///
-	/// # Safety
-	///
-	/// This function is inherently unsafe because some bits are undefined
-	// TODO make this unsafe
-	pub const fn forward_left_bits(self) -> u32 {
-		self.forward_left_movers
-	}
-
-	/// Gets the bits for a certain direction,
-	/// with undefined behavior for bits where the given move is impossible
-	///
-	/// # Safety
-	///
-	/// This function is inherently unsafe because some bits are undefined
-	// TODO make this unsafe
-	pub const fn get_direction_bits(self, direction: MoveDirection) -> u32 {
-		match direction {
-			MoveDirection::ForwardLeft => self.forward_left_movers,
-			MoveDirection::ForwardRight => self.forward_right_movers,
-			MoveDirection::BackwardLeft => self.backward_left_movers,
-			MoveDirection::BackwardRight => self.backward_right_movers,
-		}
-	}
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	fn setup_empty_iter() -> PossibleMovesIter {
+		let layout = Layout::array::<MaybeUninit<Move>>(POSSIBLE_MOVES_ITER_SIZE).unwrap();
+		let allocated_mem = unsafe { alloc(layout) };
+		let ptr =
+			match NonNull::new(allocated_mem as *mut [MaybeUninit<Move>; POSSIBLE_MOVES_ITER_SIZE])
+			{
+				Some(p) => p,
+				None => handle_alloc_error(layout),
+			};
+		let iter = PossibleMovesIter {
+			moves: ptr,
+			index: 0,
+			length: 0,
+		};
+
+		iter
+	}
+
+	fn setup_add_move_to_iter_invalid() -> (PossibleMovesIter, PossibleMoves) {
+		let moves = PossibleMoves {
+			forward_left_movers: 0,
+			forward_right_movers: 0,
+			backward_left_movers: 0,
+			backward_right_movers: 0,
+		};
+		let iter = setup_empty_iter();
+
+		(iter, moves)
+	}
+
+	fn setup_add_move_to_iter_valid() -> (PossibleMovesIter, PossibleMoves) {
+		let moves = PossibleMoves {
+			forward_left_movers: u32::MAX,
+			forward_right_movers: u32::MAX,
+			backward_left_movers: u32::MAX,
+			backward_right_movers: u32::MAX,
+		};
+		let iter = setup_empty_iter();
+
+		(iter, moves)
+	}
 
 	#[test]
 	fn same() {
@@ -634,5 +653,244 @@ mod tests {
 			PossibleMoves::has_jumps(start),
 			PossibleMoves::has_jumps(flip)
 		)
+	}
+
+	#[test]
+	fn iter_next() {
+		let test_move1 = Move::new(8, MoveDirection::ForwardLeft, false);
+		let test_move2 = Move::new(26, MoveDirection::ForwardRight, true);
+		let mut iter = setup_empty_iter();
+		iter.length = 2;
+
+		let ptr = unsafe { iter.moves.as_mut() }.get_mut(0).unwrap();
+		*ptr = MaybeUninit::new(test_move1);
+
+		let ptr = unsafe { iter.moves.as_mut() }.get_mut(1).unwrap();
+		*ptr = MaybeUninit::new(test_move2);
+
+		let recieved_move = iter.next();
+		assert!(recieved_move.is_some());
+		assert_eq!(recieved_move.unwrap(), test_move1);
+
+		let recieved_move = iter.next();
+		assert!(recieved_move.is_some());
+		assert_eq!(recieved_move.unwrap(), test_move2);
+
+		let recieved_move = iter.next();
+		assert!(recieved_move.is_none());
+	}
+
+	#[test]
+	fn add_slide_forward_left_to_iter_invalid() {
+		const START: usize = 8;
+		let (mut iter, moves) = setup_add_move_to_iter_invalid();
+		iter.add_slide_forward_left::<START>(moves);
+
+		assert_eq!(iter.index, 0);
+		assert_eq!(iter.length, 0);
+	}
+
+	#[test]
+	fn add_slide_forward_left_to_iter_valid() {
+		const START: usize = 8;
+		let (mut iter, moves) = setup_add_move_to_iter_valid();
+		iter.add_slide_forward_left::<START>(moves);
+
+		assert_eq!(iter.index, 0);
+		assert_eq!(iter.length, 1);
+
+		let new_move = iter.next().unwrap();
+		assert_eq!(new_move.start(), START as u32);
+		assert_eq!(new_move.direction(), MoveDirection::ForwardLeft);
+		assert!(!new_move.is_jump());
+	}
+
+	#[test]
+	fn add_slide_forward_right_to_iter_invalid() {
+		const START: usize = 26;
+		let (mut iter, moves) = setup_add_move_to_iter_invalid();
+		iter.add_slide_forward_right::<START>(moves);
+
+		assert_eq!(iter.index, 0);
+		assert_eq!(iter.length, 0);
+	}
+
+	#[test]
+	fn add_slide_forward_right_to_iter_valid() {
+		const START: usize = 26;
+		let (mut iter, moves) = setup_add_move_to_iter_valid();
+		iter.add_slide_forward_right::<START>(moves);
+
+		assert_eq!(iter.index, 0);
+		assert_eq!(iter.length, 1);
+
+		let new_move = iter.next().unwrap();
+		assert_eq!(new_move.start(), START as u32);
+		assert_eq!(new_move.direction(), MoveDirection::ForwardRight);
+		assert!(!new_move.is_jump());
+	}
+
+	#[test]
+	fn add_slide_backward_left_to_iter_invalid() {
+		const START: usize = 17;
+		let (mut iter, moves) = setup_add_move_to_iter_invalid();
+		iter.add_slide_backward_left::<START>(moves);
+
+		assert_eq!(iter.index, 0);
+		assert_eq!(iter.length, 0);
+	}
+
+	#[test]
+	fn add_slide_backward_left_to_iter_valid() {
+		const START: usize = 17;
+		let (mut iter, moves) = setup_add_move_to_iter_valid();
+		iter.add_slide_backward_left::<START>(moves);
+
+		assert_eq!(iter.index, 0);
+		assert_eq!(iter.length, 1);
+
+		let new_move = iter.next().unwrap();
+		assert_eq!(new_move.start(), START as u32);
+		assert_eq!(new_move.direction(), MoveDirection::BackwardLeft);
+		assert!(!new_move.is_jump());
+	}
+
+	#[test]
+	fn add_slide_backward_right_to_iter_invalid() {
+		const START: usize = 3;
+		let (mut iter, moves) = setup_add_move_to_iter_invalid();
+		iter.add_slide_backward_right::<START>(moves);
+
+		assert_eq!(iter.index, 0);
+		assert_eq!(iter.length, 0);
+	}
+
+	#[test]
+	fn add_slide_backward_right_to_iter_valid() {
+		const START: usize = 3;
+		let (mut iter, moves) = setup_add_move_to_iter_valid();
+		iter.add_slide_backward_right::<START>(moves);
+
+		assert_eq!(iter.index, 0);
+		assert_eq!(iter.length, 1);
+
+		let new_move = iter.next().unwrap();
+		assert_eq!(new_move.start(), START as u32);
+		assert_eq!(new_move.direction(), MoveDirection::BackwardRight);
+		assert!(!new_move.is_jump());
+	}
+
+	#[test]
+	fn add_jump_forward_left_to_iter_invalid() {
+		const START: usize = 8;
+		let (mut iter, moves) = setup_add_move_to_iter_invalid();
+		iter.add_jump_forward_left::<START>(moves);
+
+		assert_eq!(iter.index, 0);
+		assert_eq!(iter.length, 0);
+	}
+
+	#[test]
+	fn add_jump_forward_left_to_iter_valid() {
+		const START: usize = 8;
+		let (mut iter, moves) = setup_add_move_to_iter_valid();
+		iter.add_jump_forward_left::<START>(moves);
+
+		assert_eq!(iter.index, 0);
+		assert_eq!(iter.length, 1);
+
+		let new_move = iter.next().unwrap();
+		assert_eq!(new_move.start(), START as u32);
+		assert_eq!(new_move.direction(), MoveDirection::ForwardLeft);
+		assert!(new_move.is_jump());
+	}
+
+	#[test]
+	fn add_jump_forward_right_to_iter_invalid() {
+		const START: usize = 26;
+		let (mut iter, moves) = setup_add_move_to_iter_invalid();
+		iter.add_jump_forward_right::<START>(moves);
+
+		assert_eq!(iter.index, 0);
+		assert_eq!(iter.length, 0);
+	}
+
+	#[test]
+	fn add_jump_forward_right_to_iter_valid() {
+		const START: usize = 26;
+		let (mut iter, moves) = setup_add_move_to_iter_valid();
+		iter.add_jump_forward_right::<START>(moves);
+
+		assert_eq!(iter.index, 0);
+		assert_eq!(iter.length, 1);
+
+		let new_move = iter.next().unwrap();
+		assert_eq!(new_move.start(), START as u32);
+		assert_eq!(new_move.direction(), MoveDirection::ForwardRight);
+		assert!(new_move.is_jump());
+	}
+
+	#[test]
+	fn add_jump_backward_left_to_iter_invalid() {
+		const START: usize = 17;
+		let (mut iter, moves) = setup_add_move_to_iter_invalid();
+		iter.add_jump_backward_left::<START>(moves);
+
+		assert_eq!(iter.index, 0);
+		assert_eq!(iter.length, 0);
+	}
+
+	#[test]
+	fn add_jump_backward_left_to_iter_valid() {
+		const START: usize = 17;
+		let (mut iter, moves) = setup_add_move_to_iter_valid();
+		iter.add_jump_backward_left::<START>(moves);
+
+		assert_eq!(iter.index, 0);
+		assert_eq!(iter.length, 1);
+
+		let new_move = iter.next().unwrap();
+		assert_eq!(new_move.start(), START as u32);
+		assert_eq!(new_move.direction(), MoveDirection::BackwardLeft);
+		assert!(new_move.is_jump());
+	}
+
+	#[test]
+	fn add_jump_backward_right_to_iter_invalid() {
+		const START: usize = 3;
+		let (mut iter, moves) = setup_add_move_to_iter_invalid();
+		iter.add_jump_backward_right::<START>(moves);
+
+		assert_eq!(iter.index, 0);
+		assert_eq!(iter.length, 0);
+	}
+
+	#[test]
+	fn add_jump_backward_right_to_iter_valid() {
+		const START: usize = 3;
+		let (mut iter, moves) = setup_add_move_to_iter_valid();
+		iter.add_jump_backward_right::<START>(moves);
+
+		assert_eq!(iter.index, 0);
+		assert_eq!(iter.length, 1);
+
+		let new_move = iter.next().unwrap();
+		assert_eq!(new_move.start(), START as u32);
+		assert_eq!(new_move.direction(), MoveDirection::BackwardRight);
+		assert!(new_move.is_jump());
+	}
+
+	#[test]
+	fn test_send() {
+		fn assert_send<T: Send>() {}
+		assert_send::<PossibleMoves>();
+		// TODO iterator
+	}
+
+	#[test]
+	fn test_sync() {
+		fn assert_sync<T: Sync>() {}
+		assert_sync::<PossibleMoves>();
+		// TODO iterator
 	}
 }

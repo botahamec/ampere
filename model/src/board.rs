@@ -137,6 +137,7 @@ impl CheckersBitBoard {
 	/// * `row` - The row. The a file is row 0
 	/// * `col` - The column. The first rank is column 0
 	#[must_use]
+	// TODO test
 	pub fn get_at_row_col(self, row: usize, col: usize) -> Option<Piece> {
 		if row > 32 || col > 32 {
 			None
@@ -319,6 +320,7 @@ impl CheckersBitBoard {
 
 	/// Change whose turn it is, without modifying the board
 	#[must_use]
+	// TODO test
 	pub const fn flip_turn(self) -> Self {
 		CheckersBitBoard::new(self.pieces, self.color, self.kings, self.turn.flip())
 	}
@@ -525,6 +527,7 @@ impl CheckersBitBoard {
 	/// Moving from the left side of the board results in undefined behavior.
 	/// Moving from the top of the board results in undefined behavior
 	#[must_use]
+	// TODO test the edge cases of the below if statement
 	pub const unsafe fn jump_piece_forward_left_unchecked(self, value: usize) -> Self {
 		let is_king = self.king_at_unchecked(value);
 		let board = self
