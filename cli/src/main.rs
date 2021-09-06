@@ -47,7 +47,16 @@ fn main() {
 		);
 	}
 
-	if let Some(_matches) = matches.subcommand_matches("eval") {
-		println!("{}", eval::eval());
+	if let Some(matches) = matches.subcommand_matches("eval") {
+		println!(
+			"{}",
+			eval::eval(
+				matches
+					.value_of("depth")
+					.unwrap()
+					.parse::<usize>()
+					.expect("Error: not a valid number")
+			)
+		);
 	}
 }

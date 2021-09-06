@@ -1,4 +1,4 @@
 use ai::CheckersBitBoard;
-pub fn eval() -> f32 {
-	ai::eval(12, CheckersBitBoard::starting_position())
+pub fn eval(depth: usize) -> f32 {
+	ai::eval(depth, 0.0, 1.0, CheckersBitBoard::starting_position())
 }
