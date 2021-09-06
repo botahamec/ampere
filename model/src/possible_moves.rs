@@ -106,6 +106,41 @@ impl Iterator for PossibleMovesIter {
 			None
 		}
 	}
+
+	// TODO test
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		let remaining = self.length - self.index;
+		(remaining, Some(remaining))
+	}
+
+	// TODO test
+	fn count(self) -> usize
+	where
+		Self: Sized,
+	{
+		self.length - self.index
+	}
+
+	// TODO test
+	fn last(self) -> Option<Self::Item>
+	where
+		Self: Sized,
+	{
+		Some(unsafe { self.moves.as_ref().get_unchecked(self.length).assume_init() })
+	}
+
+	// TODO test
+	fn nth(&mut self, n: usize) -> Option<Self::Item> {
+		if self.length - self.index < n {
+			None
+		} else {
+			self.index += n;
+			let current_move =
+				unsafe { self.moves.as_ref().get_unchecked(self.length).assume_init() };
+			self.index += 1;
+			Some(current_move)
+		}
+	}
 }
 
 impl Drop for PossibleMovesIter {
