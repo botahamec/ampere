@@ -1,6 +1,7 @@
 use ai::CheckersBitBoard;
 use clap::{App, Arg, SubCommand};
 
+mod eval;
 mod perft;
 
 fn main() {
@@ -11,6 +12,17 @@ fn main() {
 		.subcommand(
 			SubCommand::with_name("perft")
 				.about("Calculate the number of possible moves")
+				.arg(
+					Arg::with_name("depth")
+						.required(true)
+						.short("d")
+						.takes_value(true)
+						.help("The depth to go to"),
+				),
+		)
+		.subcommand(
+			SubCommand::with_name("eval")
+				.about("Calculate the advantage")
 				.arg(
 					Arg::with_name("depth")
 						.required(true)
@@ -33,5 +45,9 @@ fn main() {
 					.expect("Error: not a valid number")
 			)
 		);
+	}
+
+	if let Some(_matches) = matches.subcommand_matches("eval") {
+		println!("{}", eval::eval());
 	}
 }

@@ -26,7 +26,7 @@ fn eval_position(board: CheckersBitBoard) -> f32 {
 	}
 }
 
-fn eval(depth: usize, board: CheckersBitBoard) -> f32 {
+pub fn eval(depth: usize, board: CheckersBitBoard) -> f32 {
 	if depth == 0 {
 		eval_position(board)
 	} else {
@@ -35,7 +35,7 @@ fn eval(depth: usize, board: CheckersBitBoard) -> f32 {
 		for current_move in PossibleMoves::moves(board) {
 			let board = unsafe { current_move.apply_to(board) };
 			let current_eval = if board.turn() != turn {
-				-eval(depth - 1, board)
+				1.0 - eval(depth - 1, board)
 			} else {
 				eval(depth - 1, board)
 			};
