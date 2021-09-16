@@ -64,7 +64,6 @@ pub fn best_move(depth: usize, board: CheckersBitBoard) -> Move {
 		let current_eval = eval(depth - 1, best_eval, 1.0, unsafe {
 			current_move.apply_to(board)
 		});
-		println!("{} {}", current_move, current_eval);
 		if current_eval > best_eval {
 			best_eval = current_eval;
 			best_move = MaybeUninit::new(current_move);
