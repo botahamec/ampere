@@ -1,4 +1,5 @@
-use crate::CheckersBitBoard;
+use crate::{CheckersBitBoard, SquareCoordinate};
+use std::fmt::{Display, Formatter};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum MoveDirection {
@@ -119,6 +120,17 @@ impl Move {
 				}
 			},
 		}
+	}
+}
+
+impl Display for Move {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(
+			f,
+			"{}-{}",
+			SquareCoordinate::from_value(self.start as usize),
+			SquareCoordinate::from_value(self.end_position())
+		)
 	}
 }
 

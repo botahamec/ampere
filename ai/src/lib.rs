@@ -1,4 +1,5 @@
 pub use model::{CheckersBitBoard, Move, PieceColor, PossibleMoves};
+use std::mem::MaybeUninit;
 
 const KING_WORTH: u32 = 2;
 
@@ -22,7 +23,7 @@ fn eval_position(board: CheckersBitBoard) -> f32 {
 	if dark_eval + light_eval != 0.0 {
 		light_eval / (dark_eval + light_eval)
 	} else {
-		0.0
+		0.5
 	}
 }
 
@@ -54,4 +55,21 @@ pub fn eval(depth: usize, mut alpha: f32, beta: f32, board: CheckersBitBoard) ->
 
 		best_eval
 	}
+}
+
+pub fn best_move(depth: usize, board: CheckersBitBoard) -> Move {
+	let mut best_eval = 0.0;
+	let mut best_move = MaybeUninit::uninit();
+	for current_move in PossibleMoves::moves(board) {
+		let current_eval = eval(depth - 1, best_eval, 1.0, unsafe {
+			current_move.apply_to(board)
+		});
+		println!("{} {}", current_move, current_eval);
+		if current_eval > best_eval {
+			best_eval = current_eval;
+			best_move = MaybeUninit::new(current_move);
+		}
+	}
+
+	unsafe { best_move.assume_init() }
 }

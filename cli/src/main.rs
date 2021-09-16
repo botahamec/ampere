@@ -31,6 +31,17 @@ fn main() {
 						.help("The depth to go to"),
 				),
 		)
+		.subcommand(
+			SubCommand::with_name("best")
+				.about("Calculate the best move")
+				.arg(
+					Arg::with_name("depth")
+						.required(true)
+						.short("d")
+						.takes_value(true)
+						.help("The depth to go to"),
+				),
+		)
 		.get_matches();
 
 	if let Some(matches) = matches.subcommand_matches("perft") {
@@ -58,5 +69,18 @@ fn main() {
 					.expect("Error: not a valid number")
 			)
 		);
+	}
+
+	if let Some(matches) = matches.subcommand_matches("best") {
+		println!(
+			"{}",
+			eval::best_move(
+				matches
+					.value_of("depth")
+					.unwrap()
+					.parse()
+					.expect("Error: not a valid number")
+			)
+		)
 	}
 }
