@@ -44,6 +44,11 @@ pub fn eval_singlethreaded(
 	} else {
 		let turn = board.turn();
 		let mut best_eval = f32::NEG_INFINITY;
+		let moves = PossibleMoves::moves(board);
+
+		if moves.is_empty() {
+			return 0.5;
+		}
 
 		for current_move in PossibleMoves::moves(board) {
 			let board = unsafe { current_move.apply_to(board) };
