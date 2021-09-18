@@ -23,7 +23,7 @@ fn eval_position(board: CheckersBitBoard) -> f32 {
 
 	// avoiding a divide by zero error
 	if dark_eval + light_eval != 0.0 {
-		light_eval / (dark_eval + light_eval)
+		dark_eval / (dark_eval + light_eval)
 	} else {
 		0.5
 	}
@@ -36,7 +36,11 @@ pub fn eval_singlethreaded(
 	board: CheckersBitBoard,
 ) -> f32 {
 	if depth <= 1 {
-		eval_position(board)
+		if board.turn() == PieceColor::Dark {
+			eval_position(board)
+		} else {
+			1.0 - eval_position(board)
+		}
 	} else {
 		let turn = board.turn();
 		let mut best_eval = f32::NEG_INFINITY;
