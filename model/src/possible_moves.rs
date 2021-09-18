@@ -1,5 +1,6 @@
 use crate::moves::{Move, MoveDirection};
 use crate::{CheckersBitBoard, PieceColor};
+
 use std::alloc::{alloc, dealloc, handle_alloc_error, Layout};
 use std::mem::MaybeUninit;
 use std::ptr::NonNull;
@@ -93,6 +94,8 @@ impl PossibleMovesIter {
 		}
 	}
 }
+
+unsafe impl Send for PossibleMovesIter {}
 
 impl Iterator for PossibleMovesIter {
 	type Item = Move;
