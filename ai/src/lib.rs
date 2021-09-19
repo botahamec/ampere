@@ -142,9 +142,11 @@ pub fn best_move(depth: usize, board: CheckersBitBoard) -> Move {
 	let mut best_eval = 0.0;
 	let mut best_move = MaybeUninit::uninit();
 	for current_move in PossibleMoves::moves(board) {
-		let current_eval = eval_multithreaded(depth - 1, best_eval, 1.0, unsafe {
-			current_move.apply_to(board)
-		});
+		let new_board = unsafe { current_move.apply_to(board) };
+		let mut current_eval = eval_multithreaded(depth - 1, best_eval, 1.0, new_board);
+		if new_board.turn() != board.turn() {
+			current_eval = 1.0 - current_eval;
+		}
 		if current_eval > best_eval {
 			best_eval = current_eval;
 			best_move = MaybeUninit::new(current_move);
