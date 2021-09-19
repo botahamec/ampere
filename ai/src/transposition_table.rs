@@ -1,6 +1,4 @@
 use crate::CheckersBitBoard;
-use parking_lot::lock_api::RawMutex;
-use parking_lot::Mutex;
 
 #[cfg(debug_assertions)]
 const TABLE_SIZE: usize = 1_000_000 / std::mem::size_of::<TranspositionTableEntry>();
