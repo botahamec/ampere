@@ -541,7 +541,7 @@ impl CheckersBitBoard {
 
 		const KING_MASK: u32 = 0b00100000100000100000000000001000;
 		if (is_king || (((1 << value) & KING_MASK) == 0))
-			&& PossibleMoves::has_jumps(board.flip_turn())
+			&& PossibleMoves::has_jumps_at(board.flip_turn(), (value + 14) & 31)
 		{
 			board.flip_turn()
 		} else {
@@ -574,7 +574,7 @@ impl CheckersBitBoard {
 
 		const KING_MASK: u32 = 0b00100000100000100000000000001000;
 		if (is_king || (((1 << value) & KING_MASK) == 0))
-			&& PossibleMoves::has_jumps(board.flip_turn())
+			&& PossibleMoves::has_jumps_at(board.flip_turn(), (value + 2) & 31)
 		{
 			board.flip_turn()
 		} else {
@@ -607,7 +607,7 @@ impl CheckersBitBoard {
 
 		const KING_MASK: u32 = 0b00000100000100000100000100000000;
 		if (is_king || (((1 << value) & KING_MASK) == 0))
-			&& PossibleMoves::has_jumps(board.flip_turn())
+			&& PossibleMoves::has_jumps_at(board.flip_turn(), value.wrapping_sub(2) & 31)
 		{
 			board.flip_turn()
 		} else {
@@ -639,9 +639,8 @@ impl CheckersBitBoard {
 			.clear_piece(value.wrapping_sub(7) & 31);
 
 		const KING_MASK: u32 = 0b00000100000100000100000100000000;
-		// TODO double jump should only apply to the piece that just moved
 		if (is_king || (((1 << value) & KING_MASK) == 0))
-			&& PossibleMoves::has_jumps(board.flip_turn())
+			&& PossibleMoves::has_jumps_at(board.flip_turn(), value.wrapping_sub(14) & 31)
 		{
 			board.flip_turn()
 		} else {

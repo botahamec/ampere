@@ -506,8 +506,7 @@ impl PossibleMoves {
 		}
 	}
 
-	// TODO make this private
-	pub const fn has_jumps_dark(board: CheckersBitBoard) -> bool {
+	const fn has_jumps_at_dark(board: CheckersBitBoard, value: usize) -> bool {
 		const FORWARD_LEFT_MASK: u32 = 0b00110000111100111111001111000011;
 		const FORWARD_RIGHT_MASK: u32 = 0b00111100111111001111000011001100;
 		const BACKWARD_LEFT_MASK: u32 = 0b11110011111100111100001100110000;
@@ -532,14 +531,13 @@ impl PossibleMoves {
 			let backward_spaces = backward_left_spaces | backward_right_spaces;
 
 			let backward_spaces = board.king_bits() & backward_spaces;
-			friendly_pieces & (forward_spaces | backward_spaces) != 0
+			(friendly_pieces & (forward_spaces | backward_spaces)) >> value != 0
 		} else {
-			friendly_pieces & forward_spaces != 0
+			(friendly_pieces & forward_spaces) >> value != 0
 		}
 	}
 
-	// TODO make this private
-	pub const fn has_jumps_light(board: CheckersBitBoard) -> bool {
+	const fn has_jumps_at_light(board: CheckersBitBoard, value: usize) -> bool {
 		const FORWARD_LEFT_MASK: u32 = 0b00110000111100111111001111000011;
 		const FORWARD_RIGHT_MASK: u32 = 0b00111100111111001111000011001100;
 		const BACKWARD_LEFT_MASK: u32 = 0b11110011111100111100001100110000;
@@ -564,18 +562,18 @@ impl PossibleMoves {
 			let forward_spaces = forward_left_spaces | forward_right_spaces;
 
 			let forward_spaces = board.king_bits() & forward_spaces;
-			friendly_pieces & (forward_spaces | backward_spaces) != 0
+			(friendly_pieces & (forward_spaces | backward_spaces)) >> value != 0
 		} else {
-			friendly_pieces & backward_spaces != 0
+			(friendly_pieces & backward_spaces) >> value != 0
 		}
 	}
 
 	#[inline(always)]
 	// TODO optimize
-	pub const fn has_jumps(board: CheckersBitBoard) -> bool {
+	pub const fn has_jumps_at(board: CheckersBitBoard, value: usize) -> bool {
 		match board.turn() {
-			PieceColor::Light => Self::has_jumps_light(board),
-			PieceColor::Dark => Self::has_jumps_dark(board),
+			PieceColor::Light => Self::has_jumps_at_light(board, value),
+			PieceColor::Dark => Self::has_jumps_at_dark(board, value),
 		}
 	}
 
@@ -681,8 +679,8 @@ mod tests {
 		);
 
 		assert_eq!(
-			PossibleMoves::has_jumps(start),
-			PossibleMoves::has_jumps(flip)
+			PossibleMoves::has_jumps_at(start, 0),
+			PossibleMoves::has_jumps_at(flip, 0)
 		)
 	}
 
