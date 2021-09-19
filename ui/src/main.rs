@@ -19,6 +19,7 @@ struct GameState {
 	bit_board: CheckersBitBoard,
 	selected_square: Option<SquareCoordinate>,
 	possible_moves: HashSet<Move>,
+	evaluation: f32,
 }
 
 impl GameState {
@@ -33,6 +34,7 @@ impl GameState {
 			bit_board: CheckersBitBoard::starting_position(),
 			selected_square: None,
 			possible_moves: HashSet::new(),
+			evaluation: 0.5,
 		})
 	}
 }
@@ -75,8 +77,18 @@ impl State for GameState {
 					// safety: this was determined to be in the list of possible moves
 					self.bit_board = unsafe { selected_move.apply_to(self.bit_board) };
 
+					// ai makes a move
+					while self.bit_board.turn() == PieceColor::Light
+						&& !PossibleMoves::moves(self.bit_board).is_empty()
+					{
+						let best_move = ai::best_move(12, self.bit_board);
+						self.bit_board = unsafe { best_move.apply_to(self.bit_board) };
+					}
+
 					self.selected_square = None;
 					self.possible_moves.clear();
+					self.evaluation = ai::eval_multithreaded(12, 0.0, 1.0, self.bit_board);
+					println!("{}", self.evaluation);
 				} else {
 					self.selected_square = Some(square);
 

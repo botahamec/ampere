@@ -370,18 +370,14 @@ impl PossibleMoves {
 		let friendly_pieces = board.pieces_bits() & board.color_bits();
 		let friendly_kings = friendly_pieces & board.king_bits();
 
-		let forward_left_movers =
-			not_occupied.rotate_right(7) & friendly_pieces & FORWARD_LEFT_MASK;
-		let forward_right_movers =
-			not_occupied.rotate_right(1) & friendly_pieces & FORWARD_RIGHT_MASK;
+		let forward_left_movers = not_occupied.rotate_right(7) & friendly_pieces;
+		let forward_right_movers = not_occupied.rotate_right(1) & friendly_pieces;
 		let backward_left_movers;
 		let backward_right_movers;
 
 		if friendly_kings > 0 {
-			backward_left_movers =
-				not_occupied.rotate_left(1) & friendly_kings & BACKWARD_LEFT_MASK;
-			backward_right_movers =
-				not_occupied.rotate_left(7) & friendly_kings & BACKWARD_RIGHT_MASK;
+			backward_left_movers = not_occupied.rotate_left(1) & friendly_kings;
+			backward_right_movers = not_occupied.rotate_left(7) & friendly_kings;
 		} else {
 			backward_left_movers = 0;
 			backward_right_movers = 0;
@@ -405,17 +401,14 @@ impl PossibleMoves {
 		let friendly_pieces = board.pieces_bits() & !board.color_bits();
 		let friendly_kings = friendly_pieces & board.king_bits();
 
-		let backward_left_movers =
-			not_occupied.rotate_left(1) & friendly_pieces & BACKWARD_LEFT_MASK;
-		let backward_right_movers =
-			not_occupied.rotate_left(7) & friendly_pieces & BACKWARD_RIGHT_MASK;
+		let backward_left_movers = not_occupied.rotate_left(1) & friendly_pieces;
+		let backward_right_movers = not_occupied.rotate_left(7) & friendly_pieces;
 		let forward_left_movers;
 		let forward_right_movers;
 
 		if friendly_kings > 0 {
-			forward_left_movers = not_occupied.rotate_right(7) & friendly_kings & FORWARD_LEFT_MASK;
-			forward_right_movers =
-				not_occupied.rotate_right(1) & friendly_kings & FORWARD_RIGHT_MASK;
+			forward_left_movers = not_occupied.rotate_right(7) & friendly_kings;
+			forward_right_movers = not_occupied.rotate_right(1) & friendly_kings;
 		} else {
 			forward_left_movers = 0;
 			forward_right_movers = 0;

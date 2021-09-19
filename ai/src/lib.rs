@@ -1,7 +1,10 @@
+use crate::transposition_table::TranspositionTableReference;
 pub use model::{CheckersBitBoard, Move, PieceColor, PossibleMoves};
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
 use std::mem::MaybeUninit;
+
+mod transposition_table;
 
 const KING_WORTH: u32 = 2;
 
@@ -42,12 +45,26 @@ pub fn eval_singlethreaded(
 			1.0 - eval_position(board)
 		}
 	} else {
+		let table = TranspositionTableReference::new();
+		if let Some(eval) = table.get(board, depth as u8) {
+			return eval;
+		}
+
 		let turn = board.turn();
 		let mut best_eval = f32::NEG_INFINITY;
 		let moves = PossibleMoves::moves(board);
 
 		if moves.is_empty() {
-			return 0.5;
+			let pos_eval = if board.turn() == PieceColor::Dark {
+				eval_position(board)
+			} else {
+				1.0 - eval_position(board)
+			};
+			return if pos_eval < f32::EPSILON || pos_eval > 1.0 - f32::EPSILON {
+				pos_eval
+			} else {
+				0.5
+			};
 		}
 
 		for current_move in PossibleMoves::moves(board) {
@@ -57,6 +74,9 @@ pub fn eval_singlethreaded(
 			} else {
 				eval_singlethreaded(depth - 1, alpha, beta, board)
 			};
+
+			let table = TranspositionTableReference::new();
+			table.insert(board, current_eval, depth as u8);
 
 			if current_eval >= beta {
 				return beta;

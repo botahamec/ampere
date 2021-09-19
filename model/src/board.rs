@@ -51,7 +51,7 @@ impl PartialEq for CheckersBitBoard {
 impl Hash for CheckersBitBoard {
 	/// Hashes with only the pieces part, to ensure correctness and efficiency
 	fn hash<H: Hasher>(&self, hasher: &mut H) {
-		self.pieces.hash(hasher)
+		self.hash_code().hash(hasher)
 	}
 }
 
@@ -96,6 +96,11 @@ impl CheckersBitBoard {
 			PieceColor::Dark,
 		);
 		STARTING_BITBOARD
+	}
+
+	#[must_use]
+	pub const fn hash_code(self) -> u64 {
+		(((self.color & self.pieces) as u64) << 32) | (self.pieces as u64)
 	}
 
 	/// Gets the bits that represent where pieces are on the board
@@ -634,6 +639,7 @@ impl CheckersBitBoard {
 			.clear_piece(value.wrapping_sub(7) & 31);
 
 		const KING_MASK: u32 = 0b00000100000100000100000100000000;
+		// TODO double jump should only apply to the piece that just moved
 		if (is_king || (((1 << value) & KING_MASK) == 0))
 			&& PossibleMoves::has_jumps(board.flip_turn())
 		{
