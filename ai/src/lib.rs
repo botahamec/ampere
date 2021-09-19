@@ -55,16 +55,7 @@ pub fn eval_singlethreaded(
 		let moves = PossibleMoves::moves(board);
 
 		if moves.is_empty() {
-			let pos_eval = if board.turn() == PieceColor::Dark {
-				eval_position(board)
-			} else {
-				1.0 - eval_position(board)
-			};
-			return if pos_eval < f32::EPSILON || pos_eval > 1.0 - f32::EPSILON {
-				pos_eval
-			} else {
-				0.5
-			};
+			return 0.0;
 		}
 
 		for current_move in PossibleMoves::moves(board) {
@@ -96,7 +87,11 @@ pub fn eval_singlethreaded(
 
 pub fn eval_multithreaded(depth: usize, alpha: f32, beta: f32, board: CheckersBitBoard) -> f32 {
 	if depth <= 1 {
-		eval_position(board)
+		if board.turn() == PieceColor::Dark {
+			eval_position(board)
+		} else {
+			1.0 - eval_position(board)
+		}
 	} else {
 		let turn = board.turn();
 		let best_eval = Mutex::new(f32::NEG_INFINITY);
@@ -105,34 +100,47 @@ pub fn eval_multithreaded(depth: usize, alpha: f32, beta: f32, board: CheckersBi
 
 		let is_still_going = || *keep_going.read();
 		let get_alpha = || *alpha.read();
-		PossibleMoves::moves(board)
-			.into_iter()
-			.par_bridge()
-			.for_each(|current_move| {
-				if is_still_going() {
-					let board = unsafe { current_move.apply_to(board) };
-					let current_eval = if board.turn() != turn {
-						1.0 - eval_singlethreaded(depth - 1, 1.0 - beta, 1.0 - get_alpha(), board)
-					} else {
-						eval_singlethreaded(depth - 1, get_alpha(), beta, board)
-					};
 
-					let mut best = best_eval.lock();
-					if current_eval >= beta {
-						*best = beta;
-						let mut going_val = keep_going.write();
-						*going_val = false;
-					}
+		let moves = PossibleMoves::moves(board);
 
-					if *best < current_eval {
-						*best = current_eval;
-					}
-					if get_alpha() < *best {
-						let mut alpha = alpha.write();
-						*alpha = *best;
-					}
+		if moves.is_empty() {
+			let pos_eval = if board.turn() == PieceColor::Dark {
+				eval_position(board)
+			} else {
+				1.0 - eval_position(board)
+			};
+			return if pos_eval < f32::EPSILON || pos_eval > 1.0 - f32::EPSILON {
+				pos_eval
+			} else {
+				0.5
+			};
+		}
+
+		moves.into_iter().par_bridge().for_each(|current_move| {
+			if is_still_going() {
+				let board = unsafe { current_move.apply_to(board) };
+				let current_eval = if board.turn() != turn {
+					1.0 - eval_singlethreaded(depth - 1, 1.0 - beta, 1.0 - get_alpha(), board)
+				} else {
+					eval_singlethreaded(depth - 1, get_alpha(), beta, board)
+				};
+
+				let mut best = best_eval.lock();
+				if current_eval >= beta {
+					*best = beta;
+					let mut going_val = keep_going.write();
+					*going_val = false;
 				}
-			});
+
+				if *best < current_eval {
+					*best = current_eval;
+				}
+				if get_alpha() < *best {
+					let mut alpha = alpha.write();
+					*alpha = *best;
+				}
+			}
+		});
 
 		best_eval.into_inner()
 	}
@@ -141,6 +149,12 @@ pub fn eval_multithreaded(depth: usize, alpha: f32, beta: f32, board: CheckersBi
 pub fn best_move(depth: usize, board: CheckersBitBoard) -> Move {
 	let mut best_eval = 0.0;
 	let mut best_move = MaybeUninit::uninit();
+	let moves = PossibleMoves::moves(board);
+
+	if moves.is_empty() {
+		panic!("No moves are available")
+	}
+
 	for current_move in PossibleMoves::moves(board) {
 		let new_board = unsafe { current_move.apply_to(board) };
 		let mut current_eval = eval_multithreaded(depth - 1, best_eval, 1.0, new_board);
@@ -149,7 +163,7 @@ pub fn best_move(depth: usize, board: CheckersBitBoard) -> Move {
 		}
 		if current_eval > best_eval {
 			best_eval = current_eval;
-			best_move = MaybeUninit::new(current_move);
+			best_move.write(current_move);
 		}
 	}
 

@@ -32,6 +32,7 @@ pub struct PossibleMovesIter {
 impl PossibleMovesIter {
 	fn add_slide_forward_left<const SQUARE: usize>(&mut self, possible_moves: PossibleMoves) {
 		if (possible_moves.forward_left_movers >> SQUARE) & 1 != 0 {
+			debug_assert!(self.length < POSSIBLE_MOVES_ITER_SIZE);
 			let ptr = unsafe { self.moves.as_mut().get_unchecked_mut(self.length) };
 			*ptr = MaybeUninit::new(Move::new(SQUARE, MoveDirection::ForwardLeft, false));
 			self.length += 1;
@@ -40,6 +41,7 @@ impl PossibleMovesIter {
 
 	fn add_slide_forward_right<const SQUARE: usize>(&mut self, possible_moves: PossibleMoves) {
 		if (possible_moves.forward_right_movers >> SQUARE) & 1 != 0 {
+			debug_assert!(self.length < POSSIBLE_MOVES_ITER_SIZE);
 			let ptr = unsafe { self.moves.as_mut().get_unchecked_mut(self.length) };
 			*ptr = MaybeUninit::new(Move::new(SQUARE, MoveDirection::ForwardRight, false));
 			self.length += 1;
@@ -48,6 +50,7 @@ impl PossibleMovesIter {
 
 	fn add_slide_backward_left<const SQUARE: usize>(&mut self, possible_moves: PossibleMoves) {
 		if (possible_moves.backward_left_movers >> SQUARE) & 1 != 0 {
+			debug_assert!(self.length < POSSIBLE_MOVES_ITER_SIZE);
 			let ptr = unsafe { self.moves.as_mut().get_unchecked_mut(self.length) };
 			*ptr = MaybeUninit::new(Move::new(SQUARE, MoveDirection::BackwardLeft, false));
 			self.length += 1;
@@ -56,6 +59,7 @@ impl PossibleMovesIter {
 
 	fn add_slide_backward_right<const SQUARE: usize>(&mut self, possible_moves: PossibleMoves) {
 		if (possible_moves.backward_right_movers >> SQUARE) & 1 != 0 {
+			debug_assert!(self.length < POSSIBLE_MOVES_ITER_SIZE);
 			let ptr = unsafe { self.moves.as_mut().get_unchecked_mut(self.length) };
 			*ptr = MaybeUninit::new(Move::new(SQUARE, MoveDirection::BackwardRight, false));
 			self.length += 1;
@@ -64,6 +68,7 @@ impl PossibleMovesIter {
 
 	fn add_jump_forward_left<const SQUARE: usize>(&mut self, possible_moves: PossibleMoves) {
 		if (possible_moves.forward_left_movers >> SQUARE) & 1 != 0 {
+			debug_assert!(self.length < POSSIBLE_MOVES_ITER_SIZE);
 			let ptr = unsafe { self.moves.as_mut().get_unchecked_mut(self.length) };
 			*ptr = MaybeUninit::new(Move::new(SQUARE, MoveDirection::ForwardLeft, true));
 			self.length += 1;
@@ -72,6 +77,7 @@ impl PossibleMovesIter {
 
 	fn add_jump_forward_right<const SQUARE: usize>(&mut self, possible_moves: PossibleMoves) {
 		if (possible_moves.forward_right_movers >> SQUARE) & 1 != 0 {
+			debug_assert!(self.length < POSSIBLE_MOVES_ITER_SIZE);
 			let ptr = unsafe { self.moves.as_mut().get_unchecked_mut(self.length) };
 			*ptr = MaybeUninit::new(Move::new(SQUARE, MoveDirection::ForwardRight, true));
 			self.length += 1;
@@ -80,6 +86,7 @@ impl PossibleMovesIter {
 
 	fn add_jump_backward_left<const SQUARE: usize>(&mut self, possible_moves: PossibleMoves) {
 		if (possible_moves.backward_left_movers >> SQUARE) & 1 != 0 {
+			debug_assert!(self.length < POSSIBLE_MOVES_ITER_SIZE);
 			let ptr = unsafe { self.moves.as_mut().get_unchecked_mut(self.length) };
 			*ptr = MaybeUninit::new(Move::new(SQUARE, MoveDirection::BackwardLeft, true));
 			self.length += 1;
@@ -88,6 +95,7 @@ impl PossibleMovesIter {
 
 	fn add_jump_backward_right<const SQUARE: usize>(&mut self, possible_moves: PossibleMoves) {
 		if (possible_moves.backward_right_movers >> SQUARE) & 1 != 0 {
+			debug_assert!(self.length < POSSIBLE_MOVES_ITER_SIZE);
 			let ptr = unsafe { self.moves.as_mut().get_unchecked_mut(self.length) };
 			*ptr = MaybeUninit::new(Move::new(SQUARE, MoveDirection::BackwardRight, true));
 			self.length += 1;
@@ -101,7 +109,7 @@ impl Iterator for PossibleMovesIter {
 	type Item = Move;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		if self.length != self.index {
+		if self.length > self.index {
 			let next_move = unsafe { self.moves.as_ref().get_unchecked(self.index).assume_init() };
 			self.index += 1;
 			Some(next_move)
@@ -129,7 +137,12 @@ impl Iterator for PossibleMovesIter {
 	where
 		Self: Sized,
 	{
-		Some(unsafe { self.moves.as_ref().get_unchecked(self.length).assume_init() })
+		Some(unsafe {
+			self.moves
+				.as_ref()
+				.get_unchecked(self.length - 1)
+				.assume_init()
+		})
 	}
 
 	// TODO test
@@ -139,7 +152,7 @@ impl Iterator for PossibleMovesIter {
 		} else {
 			self.index += n;
 			let current_move =
-				unsafe { self.moves.as_ref().get_unchecked(self.length).assume_init() };
+				unsafe { self.moves.as_ref().get_unchecked(self.index).assume_init() };
 			self.index += 1;
 			Some(current_move)
 		}
