@@ -100,7 +100,7 @@ impl CheckersBitBoard {
 
 	#[must_use]
 	pub const fn hash_code(self) -> u64 {
-		(((self.color & self.pieces) as u64) << 32) | (self.pieces as u64)
+		(((self.color & self.pieces) as u64) << 32) | (((!self.color & self.pieces) as u64) << 32)
 	}
 
 	/// Gets the bits that represent where pieces are on the board

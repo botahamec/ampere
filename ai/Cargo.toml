@@ -8,8 +8,7 @@ edition = "2018"
 
 [dependencies]
 model = {path = "../model"}
-rayon = "1"
-parking_lot = "0.11"
+parking_lot = "0.12"
 
 [dev-dependencies]
-criterion = "0.3"
+criterion = "0.5"

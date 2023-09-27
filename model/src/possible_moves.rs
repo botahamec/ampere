@@ -110,6 +110,7 @@ impl Iterator for PossibleMovesIter {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		if self.length > self.index {
+			debug_assert!(self.index < POSSIBLE_MOVES_ITER_SIZE);
 			let next_move = unsafe { self.moves.as_ref().get_unchecked(self.index).assume_init() };
 			self.index += 1;
 			Some(next_move)
@@ -137,17 +138,22 @@ impl Iterator for PossibleMovesIter {
 	where
 		Self: Sized,
 	{
-		Some(unsafe {
-			self.moves
-				.as_ref()
-				.get_unchecked(self.length - 1)
-				.assume_init()
-		})
+		debug_assert!(self.length <= POSSIBLE_MOVES_ITER_SIZE);
+		if self.length == 0 {
+			None
+		} else {
+			Some(unsafe {
+				self.moves
+					.as_ref()
+					.get_unchecked(self.length - 1)
+					.assume_init()
+			})
+		}
 	}
 
 	// TODO test
 	fn nth(&mut self, n: usize) -> Option<Self::Item> {
-		if self.length - self.index < n {
+		if self.length == 0 || self.length - self.index < n {
 			None
 		} else {
 			self.index += n;
@@ -469,11 +475,21 @@ impl PossibleMoves {
 			backward_right_movers = 0;
 		}
 
+		let can_jump = if forward_left_movers != 0
+			|| forward_right_movers != 0
+			|| backward_left_movers != 0
+			|| backward_right_movers != 0
+		{
+			2
+		} else {
+			0
+		};
+
 		Self {
 			forward_left_movers,
 			forward_right_movers,
 			backward_left_movers,
-			backward_right_movers: backward_right_movers | 2,
+			backward_right_movers: backward_right_movers | can_jump,
 		}
 	}
 
@@ -511,11 +527,92 @@ impl PossibleMoves {
 			forward_right_movers = 0;
 		}
 
+		let can_jump = if forward_left_movers != 0
+			|| forward_right_movers != 0
+			|| backward_left_movers != 0
+			|| backward_right_movers != 0
+		{
+			2
+		} else {
+			0
+		};
+
 		Self {
 			forward_left_movers,
 			forward_right_movers,
 			backward_left_movers,
-			backward_right_movers: backward_right_movers | 2,
+			backward_right_movers: backward_right_movers | can_jump,
+		}
+	}
+
+	const fn has_jumps_dark(board: CheckersBitBoard) -> bool {
+		const FORWARD_LEFT_MASK: u32 = 0b00110000111100111111001111000011;
+		const FORWARD_RIGHT_MASK: u32 = 0b00111100111111001111000011001100;
+		const BACKWARD_LEFT_MASK: u32 = 0b11110011111100111100001100110000;
+		const BACKWARD_RIGHT_MASK: u32 = 0b11111100111100001100110000111100;
+
+		let not_occupied = !board.pieces_bits();
+		let enemy_pieces = board.pieces_bits() & !board.color_bits();
+		let friendly_pieces = board.pieces_bits() & board.color_bits();
+
+		let forward_left_spaces =
+			not_occupied.rotate_right(14) & enemy_pieces.rotate_right(7) & FORWARD_LEFT_MASK;
+		let forward_right_spaces =
+			not_occupied.rotate_right(2) & enemy_pieces.rotate_right(1) & FORWARD_RIGHT_MASK;
+
+		let forward_spaces = forward_left_spaces | forward_right_spaces;
+
+		if board.king_bits() > 0 {
+			let backward_left_spaces =
+				not_occupied.rotate_left(2) & enemy_pieces.rotate_left(1) & BACKWARD_LEFT_MASK;
+			let backward_right_spaces =
+				not_occupied.rotate_left(14) & enemy_pieces.rotate_left(7) & BACKWARD_RIGHT_MASK;
+			let backward_spaces = backward_left_spaces | backward_right_spaces;
+
+			let backward_spaces = board.king_bits() & backward_spaces;
+			friendly_pieces & (forward_spaces | backward_spaces) != 0
+		} else {
+			friendly_pieces & forward_spaces != 0
+		}
+	}
+
+	const fn has_jumps_light(board: CheckersBitBoard) -> bool {
+		const FORWARD_LEFT_MASK: u32 = 0b00110000111100111111001111000011;
+		const FORWARD_RIGHT_MASK: u32 = 0b00111100111111001111000011001100;
+		const BACKWARD_LEFT_MASK: u32 = 0b11110011111100111100001100110000;
+		const BACKWARD_RIGHT_MASK: u32 = 0b11111100111100001100110000111100;
+
+		let not_occupied = !board.pieces_bits();
+		let enemy_pieces = board.pieces_bits() & board.color_bits();
+		let friendly_pieces = board.pieces_bits() & !board.color_bits();
+
+		let backward_left_spaces =
+			not_occupied.rotate_left(2) & enemy_pieces.rotate_left(1) & BACKWARD_LEFT_MASK;
+		let backward_right_spaces =
+			not_occupied.rotate_left(14) & enemy_pieces.rotate_left(7) & BACKWARD_RIGHT_MASK;
+
+		let backward_spaces = backward_left_spaces | backward_right_spaces;
+
+		if board.king_bits() > 0 {
+			let forward_left_spaces =
+				not_occupied.rotate_right(14) & enemy_pieces.rotate_right(7) & FORWARD_LEFT_MASK;
+			let forward_right_spaces =
+				not_occupied.rotate_right(2) & enemy_pieces.rotate_right(1) & FORWARD_RIGHT_MASK;
+			let forward_spaces = forward_left_spaces | forward_right_spaces;
+
+			let forward_spaces = board.king_bits() & forward_spaces;
+			friendly_pieces & (forward_spaces | backward_spaces) != 0
+		} else {
+			friendly_pieces & backward_spaces != 0
+		}
+	}
+
+	#[inline(always)]
+	// TODO optimize
+	pub const fn has_jumps(board: CheckersBitBoard) -> bool {
+		match board.turn() {
+			PieceColor::Light => Self::has_jumps_light(board),
+			PieceColor::Dark => Self::has_jumps_dark(board),
 		}
 	}
 
@@ -643,13 +740,12 @@ mod tests {
 				Some(p) => p,
 				None => handle_alloc_error(layout),
 			};
-		let iter = PossibleMovesIter {
+
+		PossibleMovesIter {
 			moves: ptr,
 			index: 0,
 			length: 0,
-		};
-
-		iter
+		}
 	}
 
 	fn setup_add_move_to_iter_invalid() -> (PossibleMovesIter, PossibleMoves) {
@@ -692,8 +788,8 @@ mod tests {
 		);
 
 		assert_eq!(
-			PossibleMoves::has_jumps_at(start, 0),
-			PossibleMoves::has_jumps_at(flip, 0)
+			PossibleMoves::has_jumps(start),
+			PossibleMoves::has_jumps(flip)
 		)
 	}
 

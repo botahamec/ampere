@@ -71,26 +71,24 @@ impl SquareCoordinate {
 			} else {
 				None
 			}
+		} else if self.file % 2 == 1 {
+			let column_value = match self.file {
+				1 => 19,
+				3 => 13,
+				5 => 7,
+				7 => 1,
+				_ => unreachable!(),
+			};
+			let row_value = match self.rank {
+				1 => 0,
+				3 => 8,
+				5 => 16,
+				7 => 24,
+				_ => unreachable!(),
+			};
+			Some((column_value + row_value) % 32)
 		} else {
-			if self.file % 2 == 1 {
-				let column_value = match self.file {
-					1 => 19,
-					3 => 13,
-					5 => 7,
-					7 => 1,
-					_ => unreachable!(),
-				};
-				let row_value = match self.rank {
-					1 => 0,
-					3 => 8,
-					5 => 16,
-					7 => 24,
-					_ => unreachable!(),
-				};
-				Some((column_value + row_value) % 32)
-			} else {
-				None
-			}
+			None
 		}
 	}
 }

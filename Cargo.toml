@@ -2,10 +2,14 @@
 members = [
 	"model",
 	"ai",
-	"cli",
 	"ui"
 ]
+
+[profile.dev]
+opt-level = 3
 
 [profile.release]
 lto = true
 panic = 'abort'
+incremental = false
+codegen-units = 1
