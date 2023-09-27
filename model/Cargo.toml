@@ -1,18 +1,18 @@
 [package]
 name = "model"
 version = "0.1.0"
-authors = ["Mike White <botahamec@outlook.com>"]
-edition = "2018"
+authors = ["Mica White <botahamec@outlook.com>"]
+edition = "2021"
 publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = { version = "1.0.126", optional = true, features = ["derive"] }
+serde = { version = "1", optional = true, features = ["derive"] }
 rayon = "1"
 
 [dev-dependencies]
-proptest = "1.0.0"
+proptest = "1"
 criterion = "0.3"
 
 [[bench]]
