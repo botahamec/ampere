@@ -1,3 +1,4 @@
+use engine::TranspositionTable;
 use model::{CheckersBitBoard, Move, PieceColor, PossibleMoves, SquareCoordinate};
 use std::collections::HashSet;
 use tetra::graphics::{self, Color, DrawParams, Texture};
@@ -7,7 +8,7 @@ use tetra::{input, Context, ContextBuilder, State};
 
 const WINDOW_WIDTH: f32 = 640.0;
 const WINDOW_HEIGHT: f32 = 480.0;
-const DARK_SLATE_BLUE: Color = Color::rgb(0.2823529, 0.2392157, 0.5450980);
+const DARK_SLATE_BLUE: Color = Color::rgb(0.2823529, 0.2392157, 0.545098);
 
 struct GameState {
 	chess_board: Texture,
@@ -20,6 +21,7 @@ struct GameState {
 	selected_square: Option<SquareCoordinate>,
 	possible_moves: HashSet<Move>,
 	evaluation: f32,
+	transposition_table: TranspositionTable,
 }
 
 impl GameState {
@@ -35,6 +37,7 @@ impl GameState {
 			selected_square: None,
 			possible_moves: HashSet::new(),
 			evaluation: 0.5,
+			transposition_table: TranspositionTable::new(5_000_000 / 18),
 		})
 	}
 }
@@ -63,35 +66,49 @@ impl State for GameState {
 				let rank = ((410.0 - y) / 50.0).round();
 				let square = SquareCoordinate::new(rank as u8, file as u8);
 
-				if (&self.possible_moves)
-					.into_iter()
+				if self
+					.possible_moves
+					.iter()
 					.map(|m| SquareCoordinate::from_value(m.end_position()))
 					.collect::<HashSet<SquareCoordinate>>()
 					.contains(&square)
 				{
-					let selected_move = (&self.possible_moves)
-						.into_iter()
+					let selected_move = self
+						.possible_moves
+						.iter()
 						.find(|m| SquareCoordinate::from_value(m.end_position()) == square)
 						.unwrap();
 
 					// safety: this was determined to be in the list of possible moves
 					self.bit_board = unsafe { selected_move.apply_to(self.bit_board) };
 
-					self.evaluation = ai::eval_multithreaded(15, 0.0, 1.0, self.bit_board);
-					println!("{}", self.evaluation);
+					self.evaluation = engine::current_evaluation(
+						10,
+						self.bit_board,
+						self.transposition_table.mut_ref(),
+					);
+					println!("AI advantage: {}", self.evaluation);
 
 					// ai makes a move
 					while self.bit_board.turn() == PieceColor::Light
 						&& !PossibleMoves::moves(self.bit_board).is_empty()
 					{
-						let best_move = ai::best_move(15, self.bit_board);
+						let best_move = dbg!(engine::best_move(
+							16,
+							self.bit_board,
+							self.transposition_table.mut_ref()
+						));
 						self.bit_board = unsafe { best_move.apply_to(self.bit_board) };
 					}
 
 					self.selected_square = None;
 					self.possible_moves.clear();
-					self.evaluation = ai::eval_multithreaded(15, 0.0, 1.0, self.bit_board);
-					println!("{}", self.evaluation);
+					self.evaluation = engine::current_evaluation(
+						10,
+						self.bit_board,
+						self.transposition_table.mut_ref(),
+					);
+					println!("Your advantage: {}", self.evaluation);
 				} else {
 					self.selected_square = Some(square);
 
