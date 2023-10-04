@@ -647,9 +647,9 @@ impl PossibleMoves {
 			let backward_spaces = backward_left_spaces | backward_right_spaces;
 
 			let backward_spaces = board.king_bits() & backward_spaces;
-			(friendly_pieces & (forward_spaces | backward_spaces)) >> value != 0
+			((friendly_pieces & (forward_spaces | backward_spaces)) >> value) & 1 != 0
 		} else {
-			(friendly_pieces & forward_spaces) >> value != 0
+			((friendly_pieces & forward_spaces) >> value) & 1 != 0
 		}
 	}
 
@@ -678,9 +678,9 @@ impl PossibleMoves {
 			let forward_spaces = forward_left_spaces | forward_right_spaces;
 
 			let forward_spaces = board.king_bits() & forward_spaces;
-			(friendly_pieces & (forward_spaces | backward_spaces)) >> value != 0
+			((friendly_pieces & (forward_spaces | backward_spaces)) >> value) & 1 != 0
 		} else {
-			(friendly_pieces & backward_spaces) >> value != 0
+			((friendly_pieces & backward_spaces) >> value) & 1 != 0
 		}
 	}
 
@@ -1036,6 +1036,21 @@ mod tests {
 			kings: 50332352,
 			turn: PieceColor::Light,
 		};
+		let possible_moves = PossibleMoves::moves(board);
+		assert!(!possible_moves.can_jump())
+	}
+
+	#[test]
+	fn not_has_jump_at_14_when_has_jump_at_20() {
+		// This bug was caused by me forgetting to `& 1` to the end of the
+		// `has_jump_at` functions. After playing a jump with one piece, I was
+		// able to continue jumping with completely different pieces
+		let board = CheckersBitBoard::new(
+			0b11100111001111001111110111111011,
+			0b00001100001111001111001111000011,
+			0,
+			PieceColor::Dark,
+		);
 		let possible_moves = PossibleMoves::moves(board);
 		assert!(!possible_moves.can_jump())
 	}
