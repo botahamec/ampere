@@ -5,7 +5,7 @@ use std::hash::Hash;
 
 fn clone(c: &mut Criterion) {
 	let board = CheckersBitBoard::starting_position();
-	c.bench_function("clone", |b| b.iter(|| black_box(board.clone())));
+	c.bench_function("clone", |b| b.iter(|| black_box(board)));
 }
 
 fn hash(c: &mut Criterion) {

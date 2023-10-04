@@ -23,13 +23,13 @@ mod tests;
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct CheckersBitBoard {
 	/// If the space contains a piece, it's a 1
-	pieces: u32,
+	pub pieces: u32,
 	/// If the piece is black, 1, otherwise 0
-	color: u32,
+	pub color: u32,
 	/// 1 if the piece is a king
-	kings: u32,
+	pub kings: u32,
 	/// The player who has the next turn
-	turn: PieceColor,
+	pub turn: PieceColor,
 }
 
 impl Default for CheckersBitBoard {

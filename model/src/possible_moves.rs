@@ -379,7 +379,6 @@ impl IntoIterator for PossibleMoves {
 impl PossibleMoves {
 	// TODO test
 	const fn slides_dark(board: CheckersBitBoard) -> Self {
-		// TODO maybe remove these?
 		const FORWARD_LEFT_MASK: u32 = 0b01111001111110111111001111011011;
 		const FORWARD_RIGHT_MASK: u32 = 0b01111101111111011111010111011101;
 		const BACKWARD_LEFT_MASK: u32 = 0b11111011111110111110101110111010;
@@ -389,14 +388,18 @@ impl PossibleMoves {
 		let friendly_pieces = board.pieces_bits() & board.color_bits();
 		let friendly_kings = friendly_pieces & board.king_bits();
 
-		let forward_left_movers = not_occupied.rotate_right(7) & friendly_pieces;
-		let forward_right_movers = not_occupied.rotate_right(1) & friendly_pieces;
+		let forward_left_movers =
+			not_occupied.rotate_right(7) & friendly_pieces & FORWARD_LEFT_MASK;
+		let forward_right_movers =
+			not_occupied.rotate_right(1) & friendly_pieces & FORWARD_RIGHT_MASK;
 		let backward_left_movers;
 		let backward_right_movers;
 
 		if friendly_kings > 0 {
-			backward_left_movers = not_occupied.rotate_left(1) & friendly_kings;
-			backward_right_movers = not_occupied.rotate_left(7) & friendly_kings;
+			backward_left_movers =
+				not_occupied.rotate_left(1) & friendly_kings & BACKWARD_LEFT_MASK;
+			backward_right_movers =
+				not_occupied.rotate_left(7) & friendly_kings & BACKWARD_RIGHT_MASK;
 		} else {
 			backward_left_movers = 0;
 			backward_right_movers = 0;
@@ -420,14 +423,17 @@ impl PossibleMoves {
 		let friendly_pieces = board.pieces_bits() & !board.color_bits();
 		let friendly_kings = friendly_pieces & board.king_bits();
 
-		let backward_left_movers = not_occupied.rotate_left(1) & friendly_pieces;
-		let backward_right_movers = not_occupied.rotate_left(7) & friendly_pieces;
+		let backward_left_movers =
+			not_occupied.rotate_left(1) & friendly_pieces & BACKWARD_LEFT_MASK;
+		let backward_right_movers =
+			not_occupied.rotate_left(7) & friendly_pieces & BACKWARD_RIGHT_MASK;
 		let forward_left_movers;
 		let forward_right_movers;
 
 		if friendly_kings > 0 {
-			forward_left_movers = not_occupied.rotate_right(7) & friendly_kings;
-			forward_right_movers = not_occupied.rotate_right(1) & friendly_kings;
+			forward_left_movers = not_occupied.rotate_right(7) & friendly_kings & FORWARD_LEFT_MASK;
+			forward_right_movers =
+				not_occupied.rotate_right(1) & friendly_kings & FORWARD_RIGHT_MASK;
 		} else {
 			forward_left_movers = 0;
 			forward_right_movers = 0;
@@ -1016,6 +1022,22 @@ mod tests {
 		assert_eq!(new_move.start(), START as u32);
 		assert_eq!(new_move.direction(), MoveDirection::BackwardRight);
 		assert!(new_move.is_jump());
+	}
+
+	#[test]
+	fn cant_jump_in_position_2_without_26() {
+		// This bug was bizarre, but it's caused by a white piece being in the
+		//second bit while there is no piece in the 26th bit. If you don't
+		// apply the bit mask for collision detection, then all of the light
+		// player moves become jumps.
+		let board = CheckersBitBoard {
+			pieces: 16908890,
+			color: 401395713,
+			kings: 50332352,
+			turn: PieceColor::Light,
+		};
+		let possible_moves = PossibleMoves::moves(board);
+		assert!(!possible_moves.can_jump())
 	}
 
 	#[test]

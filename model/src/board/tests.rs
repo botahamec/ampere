@@ -127,7 +127,7 @@ proptest! {
 			kings: k,
 			turn: PieceColor::Dark
 		};
-		unsafe {board.move_piece_to_unchecked(s, e)};
+		let _ = unsafe {board.move_piece_to_unchecked(s, e)};
 	}
 
 	#[test]
@@ -136,7 +136,7 @@ proptest! {
 			let board = CheckersBitBoard {
 				pieces: p, color: c, kings: k, turn: PieceColor::Dark
 			};
-			unsafe {board.move_piece_forward_unchecked(v, a)};
+			let _ = unsafe {board.move_piece_forward_unchecked(v, a)};
 		}
 	}
 
@@ -145,7 +145,7 @@ proptest! {
 		let board = CheckersBitBoard {
 			pieces: p, color: c, kings: k, turn: PieceColor::Dark
 		};
-		unsafe {board.move_piece_backward_unchecked(v, a)};
+		let _ = unsafe {board.move_piece_backward_unchecked(v, a)};
 	}
 
 	#[test]
@@ -378,8 +378,8 @@ fn test_king_at_unchecked_one_king() {
 #[test]
 fn test_default_bitboard() {
 	let board = CheckersBitBoard::default();
-	let exemptions = vec![2, 28, 22, 16, 27, 21, 15, 9];
-	let black = vec![18, 12, 6, 0, 19, 13, 7, 1, 26, 20, 14, 8];
+	let exemptions = [2, 28, 22, 16, 27, 21, 15, 9];
+	let black = [18, 12, 6, 0, 19, 13, 7, 1, 26, 20, 14, 8];
 
 	for i in 0..32 {
 		if !exemptions.contains(&i) {
