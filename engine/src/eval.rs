@@ -2,7 +2,7 @@ use std::{mem::MaybeUninit, num::NonZeroU8, ops::Neg};
 
 use model::{CheckersBitBoard, Move, PieceColor, PossibleMoves};
 
-use crate::transposition_table::TranspositionTableRef;
+use crate::{transposition_table::TranspositionTableRef, TranspositionTable};
 
 const KING_WORTH: u32 = 2;
 
@@ -142,4 +142,46 @@ pub fn negamax(
 
 		best_eval
 	}
+}
+
+pub fn current_evaluation(depth: u8, board: CheckersBitBoard, table: TranspositionTableRef) -> f32 {
+	let mut alpha = -1.0;
+	let mut beta = 1.0;
+	for i in 0..depth {
+		let mut eval = negamax(i, alpha, beta, board, table);
+
+		if (eval <= alpha) || (eval >= beta) {
+			eval = negamax(i, -1.0, 1.0, board, table);
+		}
+
+		alpha = f32::max(eval + 0.125, -1.0);
+		beta = f32::min(eval + 0.125, 1.0);
+	}
+
+	let mut eval = negamax(depth, alpha, beta, board, table);
+	if (eval <= alpha) || (eval >= beta) {
+		eval = negamax(depth, -1.0, 1.0, board, table);
+	}
+	eval
+}
+
+pub fn best_move(depth: u8, board: CheckersBitBoard, table: TranspositionTableRef) -> Move {
+	let moves = PossibleMoves::moves(board).into_iter();
+	let mut best_move = None;
+	let mut best_eval = std::f32::NEG_INFINITY;
+	for current_move in moves {
+		let current_board = unsafe { current_move.apply_to(board) };
+		let current_eval = if board.turn() == current_board.turn() {
+			current_evaluation(depth - 1, current_board, table)
+		} else {
+			-current_evaluation(depth - 1, current_board, table)
+		};
+
+		if current_eval >= best_eval {
+			best_eval = current_eval;
+			best_move = Some(current_move);
+		}
+	}
+
+	best_move.unwrap()
 }
