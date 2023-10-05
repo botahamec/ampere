@@ -1,8 +1,8 @@
-use std::{mem::MaybeUninit, num::NonZeroU8, ops::Neg};
+use std::num::NonZeroU8;
 
 use model::{CheckersBitBoard, Move, PieceColor, PossibleMoves};
 
-use crate::{transposition_table::TranspositionTableRef, TranspositionTable};
+use crate::transposition_table::TranspositionTableRef;
 
 const KING_WORTH: u32 = 2;
 
