@@ -6,6 +6,73 @@ use crate::transposition_table::TranspositionTableRef;
 
 const KING_WORTH: u32 = 2;
 
+/// This is a compact way to store the evaluation of a position. Internally, it
+/// is just a 16 bit integer being used as a fixed point number.
+///
+/// ```txt
+/// [ 1 bit | 1 bit | 8 bits |  6 bits  ]
+/// [ sign  | mate? |  whole | fraction ]
+/// ```
+///
+/// The `mate?` field indicates whether or winning player has a force win. If
+/// there's a force win, the last fourteen bits indicate how many ply it will
+/// take to win.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Evaluation(u16);
+
+impl Evaluation {
+	const LOSS: Self = Self(0b1100_0000_0000_0000);
+	const DRAW: Self = Self(0);
+
+	fn new(eval: i32) -> Self {
+		let eval_u16 = eval.unsigned_abs() as u16;
+		let sign = if eval >= 0 { 0 } else { 1 };
+		let sign = sign << 15;
+
+		Self(sign | eval_u16)
+	}
+
+	/// Returns `true` for -1, `false` for 1.
+	pub fn sign(self) -> bool {
+		((self.0 >> 15) & 1) == 1
+	}
+
+	fn sign_f32(self) -> f32 {
+		if self.sign() {
+			-1.0
+		} else {
+			1.0
+		}
+	}
+
+	/// Returns `true` if the winning player can win by force.
+	pub fn is_force_win(self) -> bool {
+		((self.0 >> 14) & 1) == 1
+	}
+	/// Returns the evaluation * 64
+	fn number_part(self) -> u16 {
+		// we just return the last 14 bits
+		self.0 & 0x3FFF
+	}
+
+	/// If there is no force win, return the evaluation as an f32
+	pub fn to_f32(self) -> Option<f32> {
+		if self.is_force_win() {
+			return None;
+		}
+
+		Some(self.sign_f32() * (self.number_part() as f32 / 64.0))
+	}
+
+	pub fn force_win_in(self) -> Option<u16> {
+		if !self.is_force_win() {
+			return None;
+		}
+
+		Some(self.number_part())
+	}
+}
+
 fn eval_position(board: CheckersBitBoard) -> f32 {
 	let light_pieces = board.pieces_bits() & !board.color_bits();
 	let dark_pieces = board.pieces_bits() & board.color_bits();
