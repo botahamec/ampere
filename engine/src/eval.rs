@@ -1,4 +1,9 @@
-use std::num::NonZeroU8;
+use std::{
+	cmp::Ordering,
+	fmt::{Debug, Display},
+	num::NonZeroU8,
+	ops::Neg,
+};
 
 use model::{CheckersBitBoard, Move, PieceColor, PossibleMoves};
 
@@ -6,74 +11,93 @@ use crate::transposition_table::TranspositionTableRef;
 
 const KING_WORTH: u32 = 2;
 
-/// This is a compact way to store the evaluation of a position. Internally, it
-/// is just a 16 bit integer being used as a fixed point number.
-///
-/// ```txt
-/// [ 1 bit | 1 bit | 8 bits |  6 bits  ]
-/// [ sign  | mate? |  whole | fraction ]
-/// ```
-///
-/// The `mate?` field indicates whether or winning player has a force win. If
-/// there's a force win, the last fourteen bits indicate how many ply it will
-/// take to win.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Evaluation(u16);
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Evaluation {
+	ForceWin(u32),
+	FloatEval(f32),
+	ForceLoss(u32),
+}
 
-impl Evaluation {
-	const LOSS: Self = Self(0b1100_0000_0000_0000);
-	const DRAW: Self = Self(0);
-
-	fn new(eval: i32) -> Self {
-		let eval_u16 = eval.unsigned_abs() as u16;
-		let sign = if eval >= 0 { 0 } else { 1 };
-		let sign = sign << 15;
-
-		Self(sign | eval_u16)
-	}
-
-	/// Returns `true` for -1, `false` for 1.
-	pub fn sign(self) -> bool {
-		((self.0 >> 15) & 1) == 1
-	}
-
-	fn sign_f32(self) -> f32 {
-		if self.sign() {
-			-1.0
-		} else {
-			1.0
-		}
-	}
-
-	/// Returns `true` if the winning player can win by force.
-	pub fn is_force_win(self) -> bool {
-		((self.0 >> 14) & 1) == 1
-	}
-	/// Returns the evaluation * 64
-	fn number_part(self) -> u16 {
-		// we just return the last 14 bits
-		self.0 & 0x3FFF
-	}
-
-	/// If there is no force win, return the evaluation as an f32
-	pub fn to_f32(self) -> Option<f32> {
-		if self.is_force_win() {
-			return None;
-		}
-
-		Some(self.sign_f32() * (self.number_part() as f32 / 64.0))
-	}
-
-	pub fn force_win_in(self) -> Option<u16> {
-		if !self.is_force_win() {
-			return None;
-		}
-
-		Some(self.number_part())
+impl PartialOrd for Evaluation {
+	fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+		Some(self.cmp(other))
 	}
 }
 
-fn eval_position(board: CheckersBitBoard) -> f32 {
+impl Eq for Evaluation {}
+
+impl Ord for Evaluation {
+	fn cmp(&self, other: &Self) -> Ordering {
+		match self {
+			Evaluation::ForceWin(moves) => match other {
+				Self::ForceWin(other_moves) => moves.cmp(other_moves).reverse(),
+				_ => Ordering::Greater,
+			},
+			Evaluation::FloatEval(eval) => match other {
+				Self::ForceWin(_) => Ordering::Less,
+				Self::FloatEval(other_eval) => eval.total_cmp(other_eval),
+				Self::ForceLoss(_) => Ordering::Greater,
+			},
+			Evaluation::ForceLoss(moves) => match other {
+				Self::ForceLoss(other_moves) => moves.cmp(other_moves),
+				_ => Ordering::Less,
+			},
+		}
+	}
+}
+
+impl Display for Evaluation {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::ForceWin(moves) => write!(f, "+M{moves}"),
+			Self::FloatEval(eval) => write!(f, "{eval:+}"),
+			Self::ForceLoss(moves) => write!(f, "-M{moves}"),
+		}
+	}
+}
+
+impl Neg for Evaluation {
+	type Output = Self;
+
+	fn neg(self) -> Self::Output {
+		match self {
+			Self::ForceWin(moves) => Self::ForceLoss(moves),
+			Self::FloatEval(eval) => Self::FloatEval(-eval),
+			Self::ForceLoss(moves) => Self::ForceWin(moves),
+		}
+	}
+}
+
+impl Evaluation {
+	const WIN: Self = Self::ForceWin(0);
+	const LOSS: Self = Self::ForceLoss(0);
+	const DRAW: Self = Self::FloatEval(0.0);
+
+	fn increment(self) -> Self {
+		match self {
+			Self::ForceWin(moves) => Self::ForceWin(moves + 1),
+			Self::FloatEval(_) => self,
+			Self::ForceLoss(moves) => Self::ForceLoss(moves + 1),
+		}
+	}
+
+	fn add(self, rhs: f32) -> Self {
+		if let Self::FloatEval(eval) = self {
+			let eval = eval + rhs;
+			if eval >= 1.0 {
+				Self::WIN
+			} else if eval <= 0.0 {
+				Self::LOSS
+			} else {
+				Self::FloatEval(eval)
+			}
+		} else {
+			self
+		}
+	}
+}
+
+fn eval_position(board: CheckersBitBoard) -> Evaluation {
 	let light_pieces = board.pieces_bits() & !board.color_bits();
 	let dark_pieces = board.pieces_bits() & board.color_bits();
 
@@ -91,37 +115,37 @@ fn eval_position(board: CheckersBitBoard) -> f32 {
 
 	// avoiding a divide by zero error
 	if dark_eval + light_eval != 0.0 {
-		(dark_eval - light_eval) / (dark_eval + light_eval)
+		Evaluation::FloatEval((dark_eval - light_eval) / (dark_eval + light_eval))
 	} else {
-		0.0
+		Evaluation::DRAW
 	}
 }
 
 fn eval_jumps(
-	mut alpha: f32,
-	beta: f32,
+	mut alpha: Evaluation,
+	beta: Evaluation,
 	board: CheckersBitBoard,
 	table: TranspositionTableRef,
-) -> f32 {
+) -> Evaluation {
 	// todo stop checking for jumps twice, but also don't look for slides if there are no jumps
 	if PossibleMoves::has_jumps(board) {
 		// todo check if this is useful
 		// todo make a board for the other player's turn reusable
 
 		let turn = board.turn();
-		let mut best_eval = f32::NEG_INFINITY;
+		let mut best_eval = Evaluation::LOSS;
 		let moves = PossibleMoves::moves(board);
 
 		if moves.is_empty() {
-			return -1.0;
+			return Evaluation::LOSS;
 		}
 
 		for current_move in moves {
 			let board = unsafe { current_move.apply_to(board) };
 			let current_eval = if board.turn() != turn {
-				-eval_jumps(-beta, -alpha, board, table)
+				-eval_jumps(-beta, -alpha, board, table).increment()
 			} else {
-				eval_jumps(alpha, beta, board, table)
+				eval_jumps(alpha, beta, board, table).increment()
 			};
 
 			table.insert(board, current_eval, unsafe { NonZeroU8::new_unchecked(1) });
@@ -152,18 +176,22 @@ unsafe fn sort_moves(
 	board: CheckersBitBoard,
 	table: TranspositionTableRef,
 ) -> std::cmp::Ordering {
-	let a_entry = table.get_any_depth(a.apply_to(board)).unwrap_or_default();
-	let b_entry = table.get_any_depth(b.apply_to(board)).unwrap_or_default();
-	a_entry.total_cmp(&b_entry)
+	let a_entry = table
+		.get_any_depth(a.apply_to(board))
+		.unwrap_or(Evaluation::DRAW);
+	let b_entry = table
+		.get_any_depth(b.apply_to(board))
+		.unwrap_or(Evaluation::DRAW);
+	a_entry.cmp(&b_entry)
 }
 
 pub fn negamax(
 	depth: u8,
-	mut alpha: f32,
-	beta: f32,
+	mut alpha: Evaluation,
+	beta: Evaluation,
 	board: CheckersBitBoard,
 	table: TranspositionTableRef,
-) -> f32 {
+) -> Evaluation {
 	if depth < 1 {
 		if board.turn() == PieceColor::Dark {
 			eval_position(board)
@@ -176,20 +204,21 @@ pub fn negamax(
 		}
 
 		let turn = board.turn();
-		let mut best_eval = f32::NEG_INFINITY;
+		let mut best_eval = Evaluation::LOSS;
 		let mut moves: Vec<Move> = PossibleMoves::moves(board).into_iter().collect();
-		moves.sort_unstable_by(|a, b| unsafe { sort_moves(a, b, board, table) });
 
 		if moves.is_empty() {
-			return -1.0;
+			return Evaluation::LOSS;
 		}
+
+		moves.sort_unstable_by(|a, b| unsafe { sort_moves(a, b, board, table) });
 
 		for current_move in moves {
 			let board = unsafe { current_move.apply_to(board) };
 			let current_eval = if board.turn() == turn {
-				negamax(depth - 1, alpha, beta, board, table)
+				negamax(depth - 1, alpha, beta, board, table).increment()
 			} else {
-				-negamax(depth - 1, -beta, -alpha, board, table)
+				-negamax(depth - 1, -beta, -alpha, board, table).increment()
 			};
 
 			if best_eval < current_eval {
@@ -211,23 +240,33 @@ pub fn negamax(
 	}
 }
 
-pub fn current_evaluation(depth: u8, board: CheckersBitBoard, table: TranspositionTableRef) -> f32 {
-	let mut alpha = -1.0;
-	let mut beta = 1.0;
+pub fn current_evaluation(
+	depth: u8,
+	board: CheckersBitBoard,
+	table: TranspositionTableRef,
+) -> Evaluation {
+	let mut alpha = Evaluation::LOSS;
+	let mut beta = Evaluation::WIN;
 	for i in 0..depth {
 		let mut eval = negamax(i, alpha, beta, board, table);
 
-		if (eval <= alpha) || (eval >= beta) {
-			eval = negamax(i, -1.0, 1.0, board, table);
+		while (eval < alpha) || (eval > beta) {
+			eval = negamax(i, alpha, beta, board, table);
+
+			if eval <= alpha {
+				alpha = Evaluation::LOSS;
+			} else if eval >= beta {
+				beta = Evaluation::WIN;
+			}
 		}
 
-		alpha = f32::max(eval + 0.125, -1.0);
-		beta = f32::min(eval + 0.125, 1.0);
+		alpha = Evaluation::max(eval.add(0.125), Evaluation::LOSS);
+		beta = Evaluation::min(eval.add(-0.125), Evaluation::WIN);
 	}
 
 	let mut eval = negamax(depth, alpha, beta, board, table);
 	if (eval <= alpha) || (eval >= beta) {
-		eval = negamax(depth, -1.0, 1.0, board, table);
+		eval = negamax(depth, Evaluation::LOSS, Evaluation::WIN, board, table);
 	}
 	eval
 }
@@ -235,7 +274,7 @@ pub fn current_evaluation(depth: u8, board: CheckersBitBoard, table: Transpositi
 pub fn best_move(depth: u8, board: CheckersBitBoard, table: TranspositionTableRef) -> Move {
 	let moves = PossibleMoves::moves(board).into_iter();
 	let mut best_move = None;
-	let mut best_eval = std::f32::NEG_INFINITY;
+	let mut best_eval = Evaluation::LOSS;
 	for current_move in moves {
 		let current_board = unsafe { current_move.apply_to(board) };
 		let current_eval = if board.turn() == current_board.turn() {

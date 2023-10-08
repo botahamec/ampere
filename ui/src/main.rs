@@ -36,7 +36,7 @@ impl GameState {
 			bit_board: CheckersBitBoard::starting_position(),
 			selected_square: None,
 			possible_moves: HashSet::new(),
-			evaluation: 0.5,
+			evaluation: 0.0,
 			transposition_table: TranspositionTable::new(5_000_000 / 18),
 		})
 	}
@@ -82,19 +82,19 @@ impl State for GameState {
 					// safety: this was determined to be in the list of possible moves
 					self.bit_board = unsafe { selected_move.apply_to(self.bit_board) };
 
-					self.evaluation = engine::current_evaluation(
-						10,
+					let evaluation = engine::current_evaluation(
+						7,
 						self.bit_board,
 						self.transposition_table.mut_ref(),
 					);
-					println!("AI advantage: {}", self.evaluation);
+					println!("AI advantage: {}", evaluation);
 
 					// ai makes a move
 					while self.bit_board.turn() == PieceColor::Light
 						&& !PossibleMoves::moves(self.bit_board).is_empty()
 					{
 						let best_move = dbg!(engine::best_move(
-							16,
+							14,
 							self.bit_board,
 							self.transposition_table.mut_ref()
 						));
@@ -103,12 +103,12 @@ impl State for GameState {
 
 					self.selected_square = None;
 					self.possible_moves.clear();
-					self.evaluation = engine::current_evaluation(
-						10,
+					let evaluation = engine::current_evaluation(
+						7,
 						self.bit_board,
 						self.transposition_table.mut_ref(),
 					);
-					println!("Your advantage: {}", self.evaluation);
+					println!("Your advantage: {}", evaluation);
 				} else {
 					self.selected_square = Some(square);
 

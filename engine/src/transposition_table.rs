@@ -1,16 +1,16 @@
-use crate::CheckersBitBoard;
+use crate::{eval::Evaluation, CheckersBitBoard};
 use parking_lot::RwLock;
 use std::num::NonZeroU8;
 
 #[derive(Copy, Clone, Debug)]
 struct TranspositionTableEntry {
 	board: CheckersBitBoard,
-	eval: f32,
+	eval: Evaluation,
 	depth: NonZeroU8,
 }
 
 impl TranspositionTableEntry {
-	const fn new(board: CheckersBitBoard, eval: f32, depth: NonZeroU8) -> Self {
+	const fn new(board: CheckersBitBoard, eval: Evaluation, depth: NonZeroU8) -> Self {
 		Self { board, eval, depth }
 	}
 }
@@ -27,7 +27,7 @@ pub struct TranspositionTableRef<'a> {
 }
 
 impl<'a> TranspositionTableRef<'a> {
-	pub fn get(self, board: CheckersBitBoard, depth: u8) -> Option<f32> {
+	pub fn get(self, board: CheckersBitBoard, depth: u8) -> Option<Evaluation> {
 		let table_len = self.replace_table.as_ref().len();
 
 		// try the replace table
@@ -66,7 +66,7 @@ impl<'a> TranspositionTableRef<'a> {
 		}
 	}
 
-	pub fn get_any_depth(self, board: CheckersBitBoard) -> Option<f32> {
+	pub fn get_any_depth(self, board: CheckersBitBoard) -> Option<Evaluation> {
 		let table_len = self.replace_table.as_ref().len();
 
 		// try the depth table
@@ -101,7 +101,7 @@ impl<'a> TranspositionTableRef<'a> {
 		}
 	}
 
-	pub fn insert(&self, board: CheckersBitBoard, eval: f32, depth: NonZeroU8) {
+	pub fn insert(&self, board: CheckersBitBoard, eval: Evaluation, depth: NonZeroU8) {
 		let table_len = self.replace_table.as_ref().len();
 
 		// insert to the replace table
