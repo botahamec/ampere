@@ -10,6 +10,7 @@ publish = false
 [dependencies]
 model = {path = "../model"}
 parking_lot = "0.12"
+mimalloc = "0.1.39"
 
 [dev-dependencies]
 criterion = "0.5"

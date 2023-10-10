@@ -1,4 +1,8 @@
 use engine::{current_evaluation, CheckersBitBoard, TranspositionTable};
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static ALLOCATOR: MiMalloc = MiMalloc;
 
 const DEPTH: u8 = 18;
 
