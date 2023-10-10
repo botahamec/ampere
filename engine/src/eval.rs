@@ -6,7 +6,7 @@ use std::{
 
 use model::{CheckersBitBoard, Move, PieceColor, PossibleMoves};
 
-use crate::transposition_table::TranspositionTableRef;
+use crate::{lazysort::LazySort, transposition_table::TranspositionTableRef};
 
 const KING_WORTH: u32 = 2;
 
@@ -182,17 +182,12 @@ fn eval_jumps(
 
 unsafe fn sort_moves(
 	a: &Move,
-	b: &Move,
 	board: CheckersBitBoard,
 	table: TranspositionTableRef,
-) -> std::cmp::Ordering {
-	let a_entry = table
+) -> Evaluation {
+	table
 		.get_any_depth(a.apply_to(board))
-		.unwrap_or(Evaluation::DRAW);
-	let b_entry = table
-		.get_any_depth(b.apply_to(board))
-		.unwrap_or(Evaluation::DRAW);
-	a_entry.cmp(&b_entry)
+		.unwrap_or(Evaluation::DRAW)
 }
 
 pub fn negamax(
@@ -215,15 +210,14 @@ pub fn negamax(
 
 		let turn = board.turn();
 		let mut best_eval = Evaluation::LOSS;
-		let mut moves: Vec<Move> = PossibleMoves::moves(board).into_iter().collect();
+		let moves: Box<[Move]> = PossibleMoves::moves(board).into_iter().collect();
 
 		if moves.is_empty() {
 			return Evaluation::LOSS;
 		}
 
-		moves.sort_unstable_by(|a, b| unsafe { sort_moves(a, b, board, table) });
-
-		for current_move in moves {
+		let sorter = LazySort::new(moves, |m| unsafe { sort_moves(m, board, table) });
+		for current_move in sorter.into_iter() {
 			let board = unsafe { current_move.apply_to(board) };
 			let current_eval = if board.turn() == turn {
 				negamax(depth - 1, alpha, beta, board, table).increment()
