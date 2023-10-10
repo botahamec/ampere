@@ -9,6 +9,8 @@ publish = false
 
 [dependencies]
 model = {path = "../model"}
+byteorder = "1"
+thiserror = "1"
 parking_lot = "0.12"
 mimalloc = "0.1.39"
 
