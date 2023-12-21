@@ -89,6 +89,9 @@ impl Move {
 	/// This functions results in undefined behavior if:
 	/// * The piece moves in a direction which would move it outside of the board
 	/// * The starting position of this move doesn't contain a piece
+	/// * The end position already contains a piece
+	/// * A jump occurs where jumps are not allowed
+	/// * A move is not a jump even though jumps are available
 	pub const unsafe fn apply_to(self, board: CheckersBitBoard) -> CheckersBitBoard {
 		match self.jump {
 			false => match self.direction {

@@ -20,6 +20,7 @@ mod transposition_table;
 
 pub const ENGINE_NAME: &str = "Ampere";
 pub const ENGINE_AUTHOR: &str = "Mica White";
+pub const ENGINE_ABOUT: &str = "Ampere Checkers Bot v1.0\nCopyright Mica White";
 
 pub struct Engine<'a> {
 	position: Mutex<CheckersBitBoard>,
@@ -160,6 +161,11 @@ impl<'a> Engine<'a> {
 		self.debug.store(debug, Ordering::Release);
 	}
 
+	pub fn is_legal_move(&self, checker_move: Move) -> bool {
+		let position = self.position.lock();
+		PossibleMoves::moves(*position).contains(checker_move)
+	}
+
 	pub fn reset_position(&self) {
 		self.set_position(CheckersBitBoard::starting_position())
 	}
@@ -167,6 +173,18 @@ impl<'a> Engine<'a> {
 	pub fn set_position(&self, position: CheckersBitBoard) {
 		let mut position_ptr = self.position.lock();
 		*position_ptr = position;
+	}
+
+	pub fn apply_move(&self, checker_move: Move) -> Option<()> {
+		unsafe {
+			if self.is_legal_move(checker_move) {
+				let mut position = self.position.lock();
+				*position = checker_move.apply_to(*position);
+				Some(())
+			} else {
+				None
+			}
+		}
 	}
 
 	pub fn start_evaluation(&'static self, settings: EvaluationSettings) {

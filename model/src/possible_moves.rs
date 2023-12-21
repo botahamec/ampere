@@ -731,6 +731,22 @@ impl PossibleMoves {
 	pub const fn can_jump(self) -> bool {
 		(self.backward_right_movers & 2) != 0
 	}
+
+	/// Returns true if the given move is possible
+	pub const fn contains(self, checker_move: Move) -> bool {
+		if checker_move.is_jump() != self.can_jump() {
+			return false;
+		}
+
+		let bits = match checker_move.direction() {
+			MoveDirection::ForwardLeft => self.forward_left_movers,
+			MoveDirection::ForwardRight => self.forward_right_movers,
+			MoveDirection::BackwardLeft => self.backward_left_movers,
+			MoveDirection::BackwardRight => self.backward_right_movers,
+		};
+
+		(bits >> checker_move.start()) & 1 == 1
+	}
 }
 
 #[cfg(test)]
