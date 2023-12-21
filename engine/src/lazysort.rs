@@ -10,10 +10,10 @@ pub struct LazySortIter<T, F: Fn(&T) -> R, R: Ord> {
 	index: usize,
 }
 
-impl<T, F: Fn(&T) -> R, R: Ord> LazySort<T, F, R> {
-	pub fn new(collection: Box<[T]>, sort_by: F) -> Self {
+impl<T: Clone, F: Fn(&T) -> R, R: Ord> LazySort<T, F, R> {
+	pub fn new(collection: &[T], sort_by: F) -> Self {
 		Self {
-			collection,
+			collection: collection.into(),
 			sort_by,
 			sorted: 0,
 		}

@@ -82,11 +82,8 @@ impl State for GameState {
 					// safety: this was determined to be in the list of possible moves
 					self.bit_board = unsafe { selected_move.apply_to(self.bit_board) };
 
-					let evaluation = engine::current_evaluation(
-						7,
-						self.bit_board,
-						self.transposition_table.mut_ref(),
-					);
+					let evaluation =
+						engine::evaluate(7, self.bit_board, self.transposition_table.mut_ref());
 					println!("AI advantage: {}", evaluation);
 
 					// ai makes a move
@@ -103,11 +100,8 @@ impl State for GameState {
 
 					self.selected_square = None;
 					self.possible_moves.clear();
-					let evaluation = engine::current_evaluation(
-						7,
-						self.bit_board,
-						self.transposition_table.mut_ref(),
-					);
+					let evaluation =
+						engine::evaluate(7, self.bit_board, self.transposition_table.mut_ref());
 					println!("Your advantage: {}", evaluation);
 				} else {
 					self.selected_square = Some(square);

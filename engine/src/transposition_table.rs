@@ -131,8 +131,10 @@ impl<'a> TranspositionTableRef<'a> {
 
 impl TranspositionTable {
 	pub fn new(table_size: usize) -> Self {
-		let mut replace_table = Box::new_uninit_slice(table_size / 2);
-		let mut depth_table = Box::new_uninit_slice(table_size / 2);
+		let table_size =
+			table_size / 2 / std::mem::size_of::<RwLock<Option<TranspositionTableEntry>>>();
+		let mut replace_table = Box::new_uninit_slice(table_size);
+		let mut depth_table = Box::new_uninit_slice(table_size);
 
 		for entry in replace_table.iter_mut() {
 			entry.write(RwLock::new(None));
@@ -148,7 +150,7 @@ impl TranspositionTable {
 		}
 	}
 
-	pub fn mut_ref(&mut self) -> TranspositionTableRef {
+	pub fn get_ref(&self) -> TranspositionTableRef {
 		TranspositionTableRef {
 			replace_table: &self.replace_table,
 			depth_table: &self.depth_table,

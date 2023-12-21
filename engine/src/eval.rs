@@ -1,12 +1,15 @@
-use std::{
-	fmt::{Debug, Display},
-	num::NonZeroU8,
-	ops::Neg,
-};
+use std::fmt::{Debug, Display};
+use std::num::NonZeroU8;
+use std::ops::Neg;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
+use std::time::Instant;
 
 use model::{CheckersBitBoard, Move, PieceColor, PossibleMoves};
 
-use crate::{lazysort::LazySort, transposition_table::TranspositionTableRef};
+use crate::lazysort::LazySort;
+use crate::transposition_table::TranspositionTableRef;
+use crate::{EvaluationTask, Frontend};
 
 const KING_WORTH: u32 = 2;
 
@@ -131,55 +134,6 @@ fn eval_position(board: CheckersBitBoard) -> Evaluation {
 	}
 }
 
-fn eval_jumps(
-	mut alpha: Evaluation,
-	beta: Evaluation,
-	board: CheckersBitBoard,
-	table: TranspositionTableRef,
-) -> Evaluation {
-	// todo stop checking for jumps twice, but also don't look for slides if there are no jumps
-	if PossibleMoves::has_jumps(board) {
-		// todo check if this is useful
-		// todo make a board for the other player's turn reusable
-
-		let turn = board.turn();
-		let mut best_eval = Evaluation::LOSS;
-		let moves = PossibleMoves::moves(board);
-
-		if moves.is_empty() {
-			return Evaluation::LOSS;
-		}
-
-		for current_move in moves {
-			let board = unsafe { current_move.apply_to(board) };
-			let current_eval = if board.turn() != turn {
-				-eval_jumps(-beta, -alpha, board, table).increment()
-			} else {
-				eval_jumps(alpha, beta, board, table).increment()
-			};
-
-			table.insert(board, current_eval, unsafe { NonZeroU8::new_unchecked(1) });
-
-			if current_eval >= beta {
-				return beta;
-			}
-
-			if best_eval < current_eval {
-				best_eval = current_eval;
-			}
-			if alpha < best_eval {
-				alpha = best_eval;
-			}
-		}
-
-		best_eval
-	} else if board.turn() == PieceColor::Dark {
-		eval_position(board)
-	} else {
-		-eval_position(board)
-	}
-}
-
 unsafe fn sort_moves(
 	a: &Move,
 	board: CheckersBitBoard,
@@ -195,38 +149,58 @@ pub fn negamax(
 	mut alpha: Evaluation,
 	beta: Evaluation,
 	board: CheckersBitBoard,
-	table: TranspositionTableRef,
-) -> Evaluation {
+	allowed_moves: Option<Arc<[Move]>>,
+	cancel_flag: &AtomicBool,
+	task: &EvaluationTask,
+) -> (Evaluation, Option<Move>) {
+	task.nodes_explored
+		.fetch_add(1, std::sync::atomic::Ordering::Release);
+
 	if depth < 1 {
 		if board.turn() == PieceColor::Dark {
-			eval_position(board)
+			(eval_position(board), None)
 		} else {
-			-eval_position(board)
+			(-eval_position(board), None)
 		}
 	} else {
+		let table = task.transposition_table;
 		if let Some(entry) = table.get(board, depth) {
-			return entry;
+			return (entry, None);
 		}
 
 		let turn = board.turn();
-		let mut best_eval = Evaluation::LOSS;
-		let moves: Box<[Move]> = PossibleMoves::moves(board).into_iter().collect();
+		let mut best_eval = Evaluation::NULL_MIN;
+		let mut best_move = None;
+		let moves: Arc<[Move]> = if let Some(moves) = allowed_moves {
+			moves
+		} else {
+			PossibleMoves::moves(board).into_iter().collect()
+		};
 
 		if moves.is_empty() {
-			return Evaluation::LOSS;
+			return (Evaluation::LOSS, None);
 		}
 
-		let sorter = LazySort::new(moves, |m| unsafe { sort_moves(m, board, table) });
+		let sorter = LazySort::new(&moves, |m| unsafe { sort_moves(m, board, table) });
 		for current_move in sorter.into_iter() {
+			if cancel_flag.load(std::sync::atomic::Ordering::Acquire) {
+				return (best_eval, best_move);
+			}
+
 			let board = unsafe { current_move.apply_to(board) };
 			let current_eval = if board.turn() == turn {
-				negamax(depth - 1, alpha, beta, board, table).increment()
+				negamax(depth - 1, alpha, beta, board, None, cancel_flag, task)
+					.0
+					.increment()
 			} else {
-				-negamax(depth - 1, -beta, -alpha, board, table).increment()
+				-negamax(depth - 1, -beta, -alpha, board, None, cancel_flag, task)
+					.0
+					.increment()
 			};
 
 			if best_eval < current_eval {
 				best_eval = current_eval;
+				best_move = Some(current_move);
 			}
 
 			if alpha < best_eval {
@@ -234,28 +208,90 @@ pub fn negamax(
 			}
 
 			if alpha >= beta {
-				return best_eval;
+				return (best_eval, best_move);
 			}
 		}
 
 		table.insert(board, best_eval, unsafe { NonZeroU8::new_unchecked(depth) });
 
-		best_eval
+		(best_eval, best_move)
 	}
 }
 
-pub fn current_evaluation(
-	depth: u8,
-	board: CheckersBitBoard,
-	table: TranspositionTableRef,
-) -> Evaluation {
+pub fn evaluate(task: Arc<EvaluationTask>, frontend: &dyn Frontend) -> Evaluation {
+	let board = task.position;
+	let cancel_flag = &task.cancel_flag;
+
+	let allowed_moves = task.allowed_moves.clone();
+	let limits = task.limits;
+	let max_depth = limits.depth;
+	let max_nodes = limits.nodes;
+	let max_time = limits.time.map(|d| Instant::now() + d.div_f32(2.0));
+
 	let mut alpha = Evaluation::NULL_MIN;
 	let mut beta = Evaluation::NULL_MAX;
-	for i in 0..depth {
-		let mut eval = negamax(i, alpha, beta, board, table);
+	let mut depth = 0;
+	let mut eval = Evaluation::DRAW;
+	let mut best_move = None;
+	loop {
+		if let Some(max_depth) = max_depth {
+			if depth > max_depth.get() {
+				break;
+			}
+		}
+
+		if let Some(max_time) = max_time {
+			if Instant::now() > max_time {
+				break;
+			}
+		}
+
+		if let Some(max_nodes) = max_nodes {
+			if task
+				.nodes_explored
+				.load(std::sync::atomic::Ordering::Acquire)
+				> max_nodes.get()
+			{
+				break;
+			}
+		}
+
+		let em = negamax(
+			depth,
+			alpha,
+			beta,
+			board,
+			allowed_moves.clone(),
+			cancel_flag,
+			&task,
+		);
+
+		// prevent incomplete search from overwriting evaluation
+		if cancel_flag.load(std::sync::atomic::Ordering::Acquire) {
+			break;
+		}
+
+		eval = em.0;
+		best_move = em.1;
 
 		while (eval <= alpha) || (eval >= beta) {
-			eval = negamax(i, alpha, beta, board, table);
+			let em = negamax(
+				depth,
+				alpha,
+				beta,
+				board,
+				allowed_moves.clone(),
+				cancel_flag,
+				&task,
+			);
+
+			// prevent incomplete search from overwriting evaluation
+			if cancel_flag.load(std::sync::atomic::Ordering::Acquire) {
+				break;
+			}
+
+			eval = em.0;
+			best_move = em.1;
 
 			if eval <= alpha {
 				alpha = Evaluation::NULL_MIN;
@@ -275,40 +311,46 @@ pub fn current_evaluation(
 		} else {
 			beta = eval.add(0.125);
 		}
+
+		depth += 1;
 	}
 
-	let mut eval = negamax(depth, alpha, beta, board, table);
-	if (eval <= alpha) || (eval >= beta) {
-		eval = negamax(
-			depth,
-			Evaluation::NULL_MIN,
-			Evaluation::NULL_MAX,
-			board,
-			table,
-		);
-	}
-	eval
-}
+	// ponder
+	if let Some(best_move) = best_move {
+		// If the best move has not been found yet, then no move will be
+		// reported. This should be very rare. This technically is not allowed
+		// by the UCI specification, but if someone stops it this quickly, they
+		// probably didn't care about the best move anyway.
+		frontend.report_best_move(best_move);
 
-pub fn best_move(depth: u8, board: CheckersBitBoard, table: TranspositionTableRef) -> Move {
-	let moves = PossibleMoves::moves(board).into_iter();
-	let mut best_move = None;
-	let mut best_eval = Evaluation::NULL_MIN;
-	for current_move in moves {
-		let current_board = unsafe { current_move.apply_to(board) };
-		let current_eval = if board.turn() == current_board.turn() {
-			current_evaluation(depth - 1, current_board, table)
-		} else {
-			-current_evaluation(depth - 1, current_board, table)
-		};
+		if task.ponder {
+			let board = unsafe { best_move.apply_to(board) };
 
-		if current_eval >= best_eval {
-			best_eval = current_eval;
-			best_move = Some(current_move);
+			let mut depth = 0;
+			loop {
+				if task
+					.end_ponder_flag
+					.load(std::sync::atomic::Ordering::Acquire)
+				{
+					break;
+				}
+
+				negamax(
+					depth,
+					Evaluation::NULL_MIN,
+					Evaluation::NULL_MAX,
+					board,
+					None,
+					&task.end_ponder_flag,
+					&task,
+				);
+
+				depth += 1;
+			}
 		}
 	}
 
-	best_move.unwrap()
+	eval
 }
 
 #[cfg(test)]
