@@ -131,9 +131,9 @@ pub enum SearchLimit {
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct ActualLimit {
-	nodes: Option<NonZeroUsize>,
-	depth: Option<NonZeroU8>,
-	time: Option<Duration>,
+	pub nodes: Option<NonZeroUsize>,
+	pub depth: Option<NonZeroU8>,
+	pub time: Option<Duration>,
 }
 
 pub trait Frontend: Sync {
