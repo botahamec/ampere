@@ -11,7 +11,7 @@ const DEPTH: u8 = 19;
 struct BasicFrontend;
 
 impl Frontend for BasicFrontend {
-	fn debug(&self, msg: &str) {}
+	fn debug(&self, _: &str) {}
 
 	fn report_best_move(&self, best_move: model::Move) {
 		println!("{best_move}");

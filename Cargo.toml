@@ -3,7 +3,7 @@ resolver = "2"
 members = [
 	"engine",
 	"model",
-	"pdn"
+	#"pdn"
 ]
 
 [profile.dev]

@@ -39,10 +39,6 @@ impl<T, const CAPACITY: usize> StackVec<T, CAPACITY> {
 		}
 	}
 
-	pub fn capcity(&self) -> usize {
-		CAPACITY
-	}
-
 	pub fn len(&self) -> usize {
 		self.len
 	}
@@ -61,39 +57,8 @@ impl<T, const CAPACITY: usize> StackVec<T, CAPACITY> {
 		unsafe { MaybeUninit::slice_assume_init_mut(&mut self.values[..self.len]) }
 	}
 
-	pub fn as_ptr(&self) -> *const T {
-		self.values.as_ptr().cast()
-	}
-
-	pub fn as_mut_ptr(&mut self) -> *mut T {
-		self.values.as_mut_ptr().cast()
-	}
-
-	pub fn try_push(&mut self, value: T) -> Option<()> {
-		self.values.get_mut(self.len)?.write(value);
-		self.len += 1;
-		Some(())
-	}
-
 	pub fn push(&mut self, value: T) {
 		self.values[self.len].write(value);
 		self.len += 1;
-	}
-
-	pub fn pop(&mut self) -> Option<T> {
-		if self.is_empty() {
-			return None;
-		}
-
-		// safety: this value will no longer be used, and the value is valid
-		//         because it appears in the valid part of the array
-		unsafe {
-			self.len -= 1;
-			Some(std::ptr::read(self.as_ptr().add(self.len())))
-		}
-	}
-
-	pub fn clear(&mut self) {
-		self.len = 0;
 	}
 }

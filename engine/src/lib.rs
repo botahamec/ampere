@@ -3,10 +3,10 @@
 #![feature(maybe_uninit_slice)]
 
 use std::num::{NonZeroU8, NonZeroUsize};
-use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread::JoinHandle;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use parking_lot::Mutex;
 
@@ -18,7 +18,7 @@ pub use transposition_table::{TranspositionTable, TranspositionTableRef};
 mod eval;
 mod lazysort;
 mod stackvec;
-mod tablebase;
+//mod tablebase;
 mod transposition_table;
 
 pub const ENGINE_NAME: &str = "Ampere";
@@ -46,11 +46,7 @@ struct EvaluationTask<'a> {
 	cancel_flag: AtomicBool,
 	end_ponder_flag: AtomicBool,
 
-	start_time: Instant,
-	current_depth: AtomicU8,
-	selective_depth: AtomicU8,
 	nodes_explored: AtomicUsize,
-	principle_variation: Mutex<Vec<Move>>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -205,11 +201,7 @@ impl<'a> Engine<'a> {
 		let cancel_flag = AtomicBool::new(false);
 		let end_ponder_flag = AtomicBool::new(false);
 
-		let start_time = Instant::now();
-		let current_depth = AtomicU8::new(0);
-		let selective_depth = AtomicU8::new(0);
 		let nodes_explored = AtomicUsize::new(0);
-		let principle_variation = Mutex::new(Vec::new());
 
 		let task = EvaluationTask {
 			position,
@@ -220,11 +212,7 @@ impl<'a> Engine<'a> {
 			cancel_flag,
 			end_ponder_flag,
 
-			start_time,
-			current_depth,
-			selective_depth,
 			nodes_explored,
-			principle_variation,
 		};
 
 		let task = Arc::new(task);
