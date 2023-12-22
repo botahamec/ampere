@@ -1,15 +1,7 @@
-use std::fmt::{Debug, Display};
-use std::num::NonZeroU8;
+use std::fmt::{self, Display};
 use std::ops::Neg;
-use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
-use std::time::Instant;
 
-use model::{CheckersBitBoard, Move, PieceColor, PossibleMoves};
-
-use crate::lazysort::LazySort;
-use crate::transposition_table::TranspositionTableRef;
-use crate::{EvaluationTask, Frontend};
+use model::CheckersBitBoard;
 
 const KING_WORTH: u32 = 2;
 
@@ -17,7 +9,7 @@ const KING_WORTH: u32 = 2;
 pub struct Evaluation(i16);
 
 impl Display for Evaluation {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		if self.is_force_win() {
 			write!(f, "+M{}", self.force_sequence_length().unwrap())
 		} else if self.is_force_loss() {
