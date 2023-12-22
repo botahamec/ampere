@@ -171,17 +171,20 @@ pub fn negamax(
 		let turn = board.turn();
 		let mut best_eval = Evaluation::NULL_MIN;
 		let mut best_move = None;
-		let moves: Arc<[Move]> = if let Some(moves) = allowed_moves {
-			moves
-		} else {
-			PossibleMoves::moves(board).into_iter().collect()
-		};
 
-		if moves.is_empty() {
+		let sort_fn = |m: &Move| unsafe { sort_moves(m, board, table) };
+		let sorter: LazySort<Move, _, Evaluation, { PossibleMoves::MAX_POSSIBLE_MOVES }> =
+			if let Some(moves) = allowed_moves {
+				LazySort::new(moves.iter().cloned(), sort_fn)
+			} else {
+				let moves = PossibleMoves::moves(board);
+				LazySort::new(moves, sort_fn)
+			};
+
+		if sorter.is_empty() {
 			return (Evaluation::LOSS, None);
 		}
 
-		let sorter = LazySort::new(&moves, |m| unsafe { sort_moves(m, board, table) });
 		for current_move in sorter.into_iter() {
 			if cancel_flag.load(std::sync::atomic::Ordering::Acquire) {
 				return (best_eval, best_move);

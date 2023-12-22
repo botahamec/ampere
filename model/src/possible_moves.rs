@@ -1,12 +1,10 @@
 use crate::moves::{Move, MoveDirection};
 use crate::{CheckersBitBoard, PieceColor};
 
-use std::alloc::{alloc, dealloc, handle_alloc_error, Layout};
 use std::mem::MaybeUninit;
-use std::ptr::NonNull;
 
 // The maximum number of available moves in any given position
-const POSSIBLE_MOVES_ITER_SIZE: usize = 42;
+pub const POSSIBLE_MOVES_ITER_SIZE: usize = 50;
 
 /// A struct containing the possible moves in a particular checkers position
 #[derive(Copy, Clone, Debug)]
@@ -20,7 +18,7 @@ pub struct PossibleMoves {
 /// An iterator of possible checkers moves for a particular position
 pub struct PossibleMovesIter {
 	/// A pointer to an array of possibly uninitialized checkers moves
-	moves: NonNull<[MaybeUninit<Move>; POSSIBLE_MOVES_ITER_SIZE]>,
+	moves: [MaybeUninit<Move>; POSSIBLE_MOVES_ITER_SIZE],
 
 	/// The current index into the moves array
 	index: usize,
@@ -165,29 +163,15 @@ impl Iterator for PossibleMovesIter {
 	}
 }
 
-impl Drop for PossibleMovesIter {
-	fn drop(&mut self) {
-		let layout = Layout::array::<MaybeUninit<Move>>(POSSIBLE_MOVES_ITER_SIZE).unwrap();
-		unsafe { dealloc(self.moves.as_ptr() as *mut u8, layout) }
-	}
-}
-
 impl IntoIterator for PossibleMoves {
 	type Item = Move;
 	type IntoIter = PossibleMovesIter;
 
 	// TODO test
 	fn into_iter(self) -> Self::IntoIter {
-		let layout = Layout::array::<MaybeUninit<Move>>(POSSIBLE_MOVES_ITER_SIZE).unwrap();
-		let allocated_mem = unsafe { alloc(layout) };
-		let ptr =
-			match NonNull::new(allocated_mem as *mut [MaybeUninit<Move>; POSSIBLE_MOVES_ITER_SIZE])
-			{
-				Some(p) => p,
-				None => handle_alloc_error(layout),
-			};
+		let moves = [MaybeUninit::uninit(); POSSIBLE_MOVES_ITER_SIZE];
 		let mut iter = PossibleMovesIter {
-			moves: ptr,
+			moves,
 			index: 0,
 			length: 0,
 		};
@@ -378,6 +362,10 @@ impl IntoIterator for PossibleMoves {
 
 impl PossibleMoves {
 	// TODO test
+
+	/// The highest possible number of valid moves
+	pub const MAX_POSSIBLE_MOVES: usize = POSSIBLE_MOVES_ITER_SIZE;
+
 	const fn slides_dark(board: CheckersBitBoard) -> Self {
 		const FORWARD_LEFT_MASK: u32 = 0b01111001111110111111001111011011;
 		const FORWARD_RIGHT_MASK: u32 = 0b01111101111111011111010111011101;
@@ -754,17 +742,9 @@ mod tests {
 	use super::*;
 
 	fn setup_empty_iter() -> PossibleMovesIter {
-		let layout = Layout::array::<MaybeUninit<Move>>(POSSIBLE_MOVES_ITER_SIZE).unwrap();
-		let allocated_mem = unsafe { alloc(layout) };
-		let ptr =
-			match NonNull::new(allocated_mem as *mut [MaybeUninit<Move>; POSSIBLE_MOVES_ITER_SIZE])
-			{
-				Some(p) => p,
-				None => handle_alloc_error(layout),
-			};
-
+		let moves = [MaybeUninit::uninit(); POSSIBLE_MOVES_ITER_SIZE];
 		PossibleMovesIter {
-			moves: ptr,
+			moves,
 			index: 0,
 			length: 0,
 		}
@@ -822,10 +802,10 @@ mod tests {
 		let mut iter = setup_empty_iter();
 		iter.length = 2;
 
-		let ptr = unsafe { iter.moves.as_mut() }.get_mut(0).unwrap();
+		let ptr = iter.moves.as_mut().get_mut(0).unwrap();
 		*ptr = MaybeUninit::new(test_move1);
 
-		let ptr = unsafe { iter.moves.as_mut() }.get_mut(1).unwrap();
+		let ptr = iter.moves.as_mut().get_mut(1).unwrap();
 		*ptr = MaybeUninit::new(test_move2);
 
 		let recieved_move = iter.next();

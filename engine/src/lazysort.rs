@@ -1,28 +1,31 @@
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LazySort<T, F: Fn(&T) -> R, R: Ord> {
-	collection: Box<[T]>,
+use crate::stackvec::StackVec;
+
+pub struct LazySort<T: Clone, F: Fn(&T) -> R, R: Ord, const CAPACITY: usize> {
+	collection: StackVec<T, CAPACITY>,
 	sorted: usize,
 	sort_by: F,
 }
 
-pub struct LazySortIter<T, F: Fn(&T) -> R, R: Ord> {
-	sorter: LazySort<T, F, R>,
+pub struct LazySortIter<T: Clone, F: Fn(&T) -> R, R: Ord, const CAPACITY: usize> {
+	sorter: LazySort<T, F, R, CAPACITY>,
 	index: usize,
 }
 
-impl<T: Clone, F: Fn(&T) -> R, R: Ord> LazySort<T, F, R> {
-	pub fn new(collection: &[T], sort_by: F) -> Self {
+impl<T: Clone, F: Fn(&T) -> R, R: Ord, const CAPACITY: usize> LazySort<T, F, R, CAPACITY> {
+	pub fn new(collection: impl IntoIterator<Item = T>, sort_by: F) -> Self {
 		Self {
-			collection: collection.into(),
+			collection: collection.into_iter().collect(),
 			sort_by,
 			sorted: 0,
 		}
 	}
 
-	fn len(&self) -> usize {
-		self.collection.len()
+	pub fn is_empty(&self) -> bool {
+		self.collection.is_empty()
 	}
+}
 
+impl<T: Clone, F: Fn(&T) -> R, R: Ord, const CAPACITY: usize> LazySort<T, F, R, CAPACITY> {
 	fn sort(&mut self, index: usize) {
 		let mut min: Option<R> = None;
 		let mut min_index = None;
@@ -56,8 +59,10 @@ impl<T: Clone, F: Fn(&T) -> R, R: Ord> LazySort<T, F, R> {
 	}
 }
 
-impl<T: Copy, F: Fn(&T) -> R, R: Ord> IntoIterator for LazySort<T, F, R> {
-	type IntoIter = LazySortIter<T, F, R>;
+impl<T: Copy, F: Fn(&T) -> R, R: Ord, const CAPACITY: usize> IntoIterator
+	for LazySort<T, F, R, CAPACITY>
+{
+	type IntoIter = LazySortIter<T, F, R, CAPACITY>;
 	type Item = T;
 
 	fn into_iter(self) -> Self::IntoIter {
@@ -68,7 +73,9 @@ impl<T: Copy, F: Fn(&T) -> R, R: Ord> IntoIterator for LazySort<T, F, R> {
 	}
 }
 
-impl<T: Copy, F: Fn(&T) -> R, R: Ord> Iterator for LazySortIter<T, F, R> {
+impl<T: Copy, F: Fn(&T) -> R, R: Ord, const CAPACITY: usize> Iterator
+	for LazySortIter<T, F, R, CAPACITY>
+{
 	type Item = T;
 
 	fn next(&mut self) -> Option<Self::Item> {

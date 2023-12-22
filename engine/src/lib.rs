@@ -1,4 +1,6 @@
 #![feature(new_uninit)]
+#![feature(maybe_uninit_uninit_array)]
+#![feature(maybe_uninit_slice)]
 
 use std::num::{NonZeroU8, NonZeroUsize};
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
@@ -15,6 +17,7 @@ pub use transposition_table::{TranspositionTable, TranspositionTableRef};
 
 mod eval;
 mod lazysort;
+mod stackvec;
 mod tablebase;
 mod transposition_table;
 
