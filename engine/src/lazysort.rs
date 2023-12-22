@@ -1,7 +1,7 @@
-use crate::stackvec::StackVec;
+use arrayvec::ArrayVec;
 
 pub struct LazySort<T: Clone, F: Fn(&T) -> R, R: Ord, const CAPACITY: usize> {
-	collection: StackVec<T, CAPACITY>,
+	collection: ArrayVec<T, CAPACITY>,
 	sorted: usize,
 	sort_by: F,
 }

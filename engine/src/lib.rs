@@ -17,7 +17,6 @@ pub use transposition_table::{TranspositionTable, TranspositionTableRef};
 
 mod eval;
 mod lazysort;
-mod stackvec;
 //mod tablebase;
 mod transposition_table;
 
