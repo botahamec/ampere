@@ -147,7 +147,7 @@ impl CheckersBitBoard {
 		if row > 32 || col > 32 {
 			None
 		} else {
-			let value = SquareCoordinate::new(row as u8, col as u8).to_value();
+			let value = SquareCoordinate::new(row as u8, col as u8).to_ampere_value();
 			if let Some(value) = value {
 				if self.piece_at(value) {
 					Some(Piece::new(

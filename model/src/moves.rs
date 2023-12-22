@@ -131,8 +131,8 @@ impl Display for Move {
 		write!(
 			f,
 			"{}-{}",
-			SquareCoordinate::from_value(self.start() as usize),
-			SquareCoordinate::from_value(self.end_position())
+			SquareCoordinate::from_ampere_value(self.start() as usize),
+			SquareCoordinate::from_ampere_value(self.end_position())
 		)
 	}
 }

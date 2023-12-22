@@ -8,16 +8,55 @@ pub struct SquareCoordinate {
 
 impl SquareCoordinate {
 	pub fn new(rank: u8, file: u8) -> Self {
-		if rank > 32 {
-			panic!("A Square cannot have a rank greater than 32. Got {}", rank)
-		} else if file > 32 {
-			panic!("A Square cannot have a file greater than 32. Got {}", file)
+		if rank > 8 {
+			panic!("A Square cannot have a rank greater than 8. Got {}", rank)
+		} else if file > 8 {
+			panic!("A Square cannot have a file greater than 8. Got {}", file)
 		} else {
 			Self { rank, file }
 		}
 	}
 
-	pub fn from_value(value: usize) -> Self {
+	pub fn from_normal_value(value: usize) -> Self {
+		static VALUE_COORDINATE_MAP: [SquareCoordinate; 32] = [
+			SquareCoordinate { rank: 0, file: 6 },
+			SquareCoordinate { rank: 0, file: 4 },
+			SquareCoordinate { rank: 0, file: 2 },
+			SquareCoordinate { rank: 0, file: 0 },
+			SquareCoordinate { rank: 1, file: 7 },
+			SquareCoordinate { rank: 1, file: 5 },
+			SquareCoordinate { rank: 1, file: 3 },
+			SquareCoordinate { rank: 1, file: 1 },
+			SquareCoordinate { rank: 2, file: 6 },
+			SquareCoordinate { rank: 2, file: 4 },
+			SquareCoordinate { rank: 2, file: 2 },
+			SquareCoordinate { rank: 2, file: 0 },
+			SquareCoordinate { rank: 3, file: 7 },
+			SquareCoordinate { rank: 3, file: 5 },
+			SquareCoordinate { rank: 3, file: 3 },
+			SquareCoordinate { rank: 3, file: 1 },
+			SquareCoordinate { rank: 4, file: 6 },
+			SquareCoordinate { rank: 4, file: 4 },
+			SquareCoordinate { rank: 4, file: 2 },
+			SquareCoordinate { rank: 4, file: 0 },
+			SquareCoordinate { rank: 5, file: 7 },
+			SquareCoordinate { rank: 5, file: 5 },
+			SquareCoordinate { rank: 5, file: 3 },
+			SquareCoordinate { rank: 5, file: 1 },
+			SquareCoordinate { rank: 6, file: 6 },
+			SquareCoordinate { rank: 6, file: 4 },
+			SquareCoordinate { rank: 6, file: 2 },
+			SquareCoordinate { rank: 6, file: 0 },
+			SquareCoordinate { rank: 7, file: 7 },
+			SquareCoordinate { rank: 7, file: 5 },
+			SquareCoordinate { rank: 7, file: 3 },
+			SquareCoordinate { rank: 7, file: 1 },
+		];
+
+		VALUE_COORDINATE_MAP[value]
+	}
+
+	pub fn from_ampere_value(value: usize) -> Self {
 		static VALUE_COORDINATE_MAP: [SquareCoordinate; 32] = [
 			SquareCoordinate { rank: 0, file: 6 },
 			SquareCoordinate { rank: 1, file: 7 },
@@ -64,7 +103,7 @@ impl SquareCoordinate {
 		self.file
 	}
 
-	pub fn to_value(self) -> Option<usize> {
+	pub fn to_ampere_value(self) -> Option<usize> {
 		if self.rank % 2 == 0 {
 			if self.file % 2 == 0 {
 				Some(((18 - ((self.file / 2) * 6)) + ((self.rank / 2) * 8)) as usize % 32)
@@ -89,6 +128,14 @@ impl SquareCoordinate {
 			Some((column_value + row_value) % 32)
 		} else {
 			None
+		}
+	}
+
+	pub fn to_normal_value(self) -> Option<usize> {
+		if self.rank % 2 == 0 {
+			Some(self.rank as usize * 4 + self.file as usize % 4)
+		} else {
+			Some(self.rank as usize * 4 + self.file as usize % 4 + 1)
 		}
 	}
 }
