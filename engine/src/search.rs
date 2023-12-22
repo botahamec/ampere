@@ -4,10 +4,12 @@ use std::time::Instant;
 
 use model::{CheckersBitBoard, Move, PieceColor, PossibleMoves};
 
+use crate::engine::EvaluationTask;
+use crate::Frontend;
 use crate::{
 	eval::{eval_position, Evaluation},
 	lazysort::LazySort,
-	EvaluationTask, Frontend, TranspositionTableRef,
+	TranspositionTableRef,
 };
 
 unsafe fn sort_moves(
@@ -182,13 +184,13 @@ pub fn search(task: Arc<EvaluationTask>, frontend: &dyn Frontend) -> Evaluation 
 		if alpha.is_force_loss() {
 			alpha = Evaluation::NULL_MIN;
 		} else {
-			alpha = eval.add(-0.125);
+			alpha = eval.add_f32(-0.125);
 		}
 
 		if beta.is_force_win() {
 			beta = Evaluation::NULL_MAX;
 		} else {
-			beta = eval.add(0.125);
+			beta = eval.add_f32(0.125);
 		}
 
 		depth += 1;

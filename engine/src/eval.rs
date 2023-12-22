@@ -93,7 +93,7 @@ impl Evaluation {
 		}
 	}
 
-	pub fn add(self, rhs: f32) -> Self {
+	pub fn add_f32(self, rhs: f32) -> Self {
 		let Some(eval) = self.to_f32() else {
 			return self;
 		};
