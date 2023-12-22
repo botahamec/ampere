@@ -10,14 +10,15 @@ use std::time::Duration;
 
 use parking_lot::Mutex;
 
-use eval::{evaluate, Evaluation};
+use eval::Evaluation;
+use search::search;
 
 pub use model::{CheckersBitBoard, Move, PieceColor, PossibleMoves};
 pub use transposition_table::{TranspositionTable, TranspositionTableRef};
 
 mod eval;
 mod lazysort;
-//mod tablebase;
+mod search;
 mod transposition_table;
 
 pub const ENGINE_NAME: &str = "Ampere";
@@ -224,7 +225,7 @@ impl<'a> Engine<'a> {
 			*pondering_task = Some(task_ref.clone());
 		}
 
-		let thread = std::thread::spawn(move || evaluate(task_ref, self.frontend));
+		let thread = std::thread::spawn(move || search(task_ref, self.frontend));
 		let mut thread_ptr = self.current_thread.lock();
 		*thread_ptr = Some(thread);
 	}
