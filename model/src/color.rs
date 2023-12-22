@@ -26,7 +26,6 @@ impl Display for PieceColor {
 impl PieceColor {
 	/// Flips the color
 	pub const fn flip(self) -> Self {
-		// TODO optimize
 		match self {
 			PieceColor::Light => PieceColor::Dark,
 			PieceColor::Dark => PieceColor::Light,
