@@ -10,6 +10,13 @@ pub enum MoveDirection {
 }
 
 /// A checkers move
+// This is stored as a single byte. The first five bits represent the starting
+// position, the next two bits represent the direction, and the last bit
+// represents whether or not the move is a jump.
+//
+//   starting position  direction jump
+// |--------------------|--------|----|
+//           5              2      1
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Move(u8);
 
