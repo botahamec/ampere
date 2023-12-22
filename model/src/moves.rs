@@ -11,16 +11,7 @@ pub enum MoveDirection {
 
 /// A checkers move
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct Move {
-	/// The position of the piece to move
-	start: u32,
-
-	/// The direction to move to
-	direction: MoveDirection,
-
-	/// Whether or not it's a jump
-	jump: bool,
-}
+pub struct Move(u8);
 
 impl Move {
 	/// Create a new move
@@ -31,42 +22,44 @@ impl Move {
 	/// * `direction` - The direction the piece should move in
 	/// * `jump` - Whether or not the piece should jump
 	pub const fn new(start: usize, direction: MoveDirection, jump: bool) -> Self {
-		Self {
-			start: start as u32,
-			direction,
-			jump,
-		}
+		Self(((start as u8) << 3) | ((direction as u8) << 1) | jump as u8)
 	}
 
 	/// The stating position of the move
 	pub const fn start(self) -> u32 {
-		self.start
+		((self.0 >> 3) & 0b11111) as u32
 	}
 
 	/// The direction the move goes in
 	pub const fn direction(self) -> MoveDirection {
-		self.direction
+		match (self.0 >> 1) & 0b11 {
+			0 => MoveDirection::ForwardLeft,
+			1 => MoveDirection::ForwardRight,
+			2 => MoveDirection::BackwardLeft,
+			3 => MoveDirection::BackwardRight,
+			_ => unreachable!(),
+		}
 	}
 
 	/// Returns `true` if the move is a jump
 	pub const fn is_jump(self) -> bool {
-		self.jump
+		(self.0 & 1) == 1
 	}
 
 	/// Calculates the value of the end position of the move
 	pub const fn end_position(self) -> usize {
-		let dest = match self.jump {
-			false => match self.direction {
-				MoveDirection::ForwardLeft => (self.start + 7) % 32,
-				MoveDirection::ForwardRight => (self.start + 1) % 32,
-				MoveDirection::BackwardLeft => self.start.wrapping_sub(1) % 32,
-				MoveDirection::BackwardRight => self.start.wrapping_sub(7) % 32,
+		let dest = match self.is_jump() {
+			false => match self.direction() {
+				MoveDirection::ForwardLeft => (self.start() + 7) % 32,
+				MoveDirection::ForwardRight => (self.start() + 1) % 32,
+				MoveDirection::BackwardLeft => self.start().wrapping_sub(1) % 32,
+				MoveDirection::BackwardRight => self.start().wrapping_sub(7) % 32,
 			},
-			true => match self.direction {
-				MoveDirection::ForwardLeft => (self.start + 14) % 32,
-				MoveDirection::ForwardRight => (self.start + 2) % 32,
-				MoveDirection::BackwardLeft => self.start.wrapping_sub(2) % 32,
-				MoveDirection::BackwardRight => self.start.wrapping_sub(14) % 32,
+			true => match self.direction() {
+				MoveDirection::ForwardLeft => (self.start() + 14) % 32,
+				MoveDirection::ForwardRight => (self.start() + 2) % 32,
+				MoveDirection::BackwardLeft => self.start().wrapping_sub(2) % 32,
+				MoveDirection::BackwardRight => self.start().wrapping_sub(14) % 32,
 			},
 		};
 		dest as usize
@@ -93,33 +86,33 @@ impl Move {
 	/// * A jump occurs where jumps are not allowed
 	/// * A move is not a jump even though jumps are available
 	pub const unsafe fn apply_to(self, board: CheckersBitBoard) -> CheckersBitBoard {
-		match self.jump {
-			false => match self.direction {
+		match self.is_jump() {
+			false => match self.direction() {
 				MoveDirection::ForwardLeft => {
-					board.move_piece_forward_left_unchecked(self.start as usize)
+					board.move_piece_forward_left_unchecked(self.start() as usize)
 				}
 				MoveDirection::ForwardRight => {
-					board.move_piece_forward_right_unchecked(self.start as usize)
+					board.move_piece_forward_right_unchecked(self.start() as usize)
 				}
 				MoveDirection::BackwardLeft => {
-					board.move_piece_backward_left_unchecked(self.start as usize)
+					board.move_piece_backward_left_unchecked(self.start() as usize)
 				}
 				MoveDirection::BackwardRight => {
-					board.move_piece_backward_right_unchecked(self.start as usize)
+					board.move_piece_backward_right_unchecked(self.start() as usize)
 				}
 			},
-			true => match self.direction {
+			true => match self.direction() {
 				MoveDirection::ForwardLeft => {
-					board.jump_piece_forward_left_unchecked(self.start as usize)
+					board.jump_piece_forward_left_unchecked(self.start() as usize)
 				}
 				MoveDirection::ForwardRight => {
-					board.jump_piece_forward_right_unchecked(self.start as usize)
+					board.jump_piece_forward_right_unchecked(self.start() as usize)
 				}
 				MoveDirection::BackwardLeft => {
-					board.jump_piece_backward_left_unchecked(self.start as usize)
+					board.jump_piece_backward_left_unchecked(self.start() as usize)
 				}
 				MoveDirection::BackwardRight => {
-					board.jump_piece_backward_right_unchecked(self.start as usize)
+					board.jump_piece_backward_right_unchecked(self.start() as usize)
 				}
 			},
 		}
@@ -131,7 +124,7 @@ impl Display for Move {
 		write!(
 			f,
 			"{}-{}",
-			SquareCoordinate::from_value(self.start as usize),
+			SquareCoordinate::from_value(self.start() as usize),
 			SquareCoordinate::from_value(self.end_position())
 		)
 	}
@@ -148,27 +141,27 @@ mod tests {
 		fn new(start in 0usize..32, jump in proptest::bool::ANY) {
 			let direction = MoveDirection::ForwardLeft;
 			let move_test = Move::new(start, direction, jump);
-			assert_eq!(move_test.start as usize, start);
-			assert_eq!(move_test.direction, direction);
-			assert_eq!(move_test.jump, jump);
+			assert_eq!(move_test.start() as usize, start);
+			assert_eq!(move_test.direction(), direction);
+			assert_eq!(move_test.is_jump(), jump);
 
 			let direction = MoveDirection::ForwardRight;
 			let move_test = Move::new(start, direction, jump);
-			assert_eq!(move_test.start as usize, start);
-			assert_eq!(move_test.direction, direction);
-			assert_eq!(move_test.jump, jump);
+			assert_eq!(move_test.start() as usize, start);
+			assert_eq!(move_test.direction(), direction);
+			assert_eq!(move_test.is_jump(), jump);
 
 			let direction = MoveDirection::BackwardLeft;
 			let move_test = Move::new(start, direction, jump);
-			assert_eq!(move_test.start as usize, start);
-			assert_eq!(move_test.direction, direction);
-			assert_eq!(move_test.jump, jump);
+			assert_eq!(move_test.start() as usize, start);
+			assert_eq!(move_test.direction(), direction);
+			assert_eq!(move_test.is_jump(), jump);
 
 			let direction = MoveDirection::BackwardRight;
 			let move_test = Move::new(start, direction, jump);
-			assert_eq!(move_test.start as usize, start);
-			assert_eq!(move_test.direction, direction);
-			assert_eq!(move_test.jump, jump);
+			assert_eq!(move_test.start() as usize, start);
+			assert_eq!(move_test.direction(), direction);
+			assert_eq!(move_test.is_jump(), jump);
 		}
 
 		#[test]
