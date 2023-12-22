@@ -1055,13 +1055,13 @@ mod tests {
 	fn test_send() {
 		fn assert_send<T: Send>() {}
 		assert_send::<PossibleMoves>();
-		// TODO iterator
+		assert_send::<PossibleMovesIter>();
 	}
 
 	#[test]
 	fn test_sync() {
 		fn assert_sync<T: Sync>() {}
 		assert_sync::<PossibleMoves>();
-		// TODO iterator
+		assert_sync::<PossibleMovesIter>();
 	}
 }
