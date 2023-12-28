@@ -1,4 +1,5 @@
 use crate::{eval::Evaluation, CheckersBitBoard};
+use model::Move;
 use parking_lot::RwLock;
 use std::num::NonZeroU8;
 
@@ -6,12 +7,23 @@ use std::num::NonZeroU8;
 struct TranspositionTableEntry {
 	board: CheckersBitBoard,
 	eval: Evaluation,
+	best_move: Move,
 	depth: NonZeroU8,
 }
 
 impl TranspositionTableEntry {
-	const fn new(board: CheckersBitBoard, eval: Evaluation, depth: NonZeroU8) -> Self {
-		Self { board, eval, depth }
+	const fn new(
+		board: CheckersBitBoard,
+		eval: Evaluation,
+		best_move: Move,
+		depth: NonZeroU8,
+	) -> Self {
+		Self {
+			board,
+			eval,
+			best_move,
+			depth,
+		}
 	}
 }
 
@@ -27,7 +39,7 @@ pub struct TranspositionTableRef<'a> {
 }
 
 impl<'a> TranspositionTableRef<'a> {
-	pub fn get(self, board: CheckersBitBoard, depth: u8) -> Option<Evaluation> {
+	pub fn get(self, board: CheckersBitBoard, depth: u8) -> Option<(Evaluation, Move)> {
 		let table_len = self.replace_table.as_ref().len();
 
 		// try the replace table
@@ -39,7 +51,7 @@ impl<'a> TranspositionTableRef<'a> {
 		};
 		if let Some(entry) = *entry {
 			if entry.board == board && entry.depth.get() >= depth {
-				return Some(entry.eval);
+				return Some((entry.eval, entry.best_move));
 			}
 		}
 
@@ -54,7 +66,7 @@ impl<'a> TranspositionTableRef<'a> {
 			Some(entry) => {
 				if entry.board == board {
 					if entry.depth.get() >= depth {
-						Some(entry.eval)
+						Some((entry.eval, entry.best_move))
 					} else {
 						None
 					}
@@ -101,7 +113,13 @@ impl<'a> TranspositionTableRef<'a> {
 		}
 	}
 
-	pub fn insert(&self, board: CheckersBitBoard, eval: Evaluation, depth: NonZeroU8) {
+	pub fn insert(
+		&self,
+		board: CheckersBitBoard,
+		eval: Evaluation,
+		best_move: Move,
+		depth: NonZeroU8,
+	) {
 		let table_len = self.replace_table.as_ref().len();
 
 		// insert to the replace table
@@ -110,7 +128,7 @@ impl<'a> TranspositionTableRef<'a> {
 				.get_unchecked(board.hash_code() as usize % table_len)
 				.write()
 		};
-		*entry = Some(TranspositionTableEntry::new(board, eval, depth));
+		*entry = Some(TranspositionTableEntry::new(board, eval, best_move, depth));
 
 		// insert to the depth table, only if the new depth is higher
 		let mut entry = unsafe {
@@ -121,10 +139,10 @@ impl<'a> TranspositionTableRef<'a> {
 		match *entry {
 			Some(entry_val) => {
 				if depth >= entry_val.depth {
-					*entry = Some(TranspositionTableEntry::new(board, eval, depth));
+					*entry = Some(TranspositionTableEntry::new(board, eval, best_move, depth));
 				}
 			}
-			None => *entry = Some(TranspositionTableEntry::new(board, eval, depth)),
+			None => *entry = Some(TranspositionTableEntry::new(board, eval, best_move, depth)),
 		}
 	}
 }

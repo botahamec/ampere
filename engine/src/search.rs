@@ -42,8 +42,8 @@ pub fn negamax(
 		}
 	} else {
 		let table = task.transposition_table;
-		if let Some(entry) = table.get(board, depth) {
-			return (entry, None);
+		if let Some((entry, best_move)) = table.get(board, depth) {
+			return (entry, Some(best_move));
 		}
 
 		let turn = board.turn();
@@ -93,9 +93,14 @@ pub fn negamax(
 			}
 		}
 
-		table.insert(board, best_eval, unsafe { NonZeroU8::new_unchecked(depth) });
+		// safety: we already checked that the list isn't empty, so there must
+		//         be at least one move here
+		let best_move = unsafe { best_move.unwrap_unchecked() };
+		// safety: in the case of a zero depth, a different branch is taken
+		let depth = unsafe { NonZeroU8::new_unchecked(depth) };
+		table.insert(board, best_eval, best_move, depth);
 
-		(best_eval, best_move)
+		(best_eval, Some(best_move))
 	}
 }
 
