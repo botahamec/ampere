@@ -15,6 +15,8 @@ pub const ENGINE_NAME: &str = "Ampere";
 pub const ENGINE_AUTHOR: &str = "Mica White";
 pub const ENGINE_ABOUT: &str = "Ampere Checkers Bot v1.0\nCopyright Mica White";
 
+type EvalThread = JoinHandle<(Evaluation, Option<Move>)>;
+
 pub struct Engine<'a> {
 	position: Mutex<CheckersBitBoard>,
 	transposition_table: TranspositionTable,
@@ -22,7 +24,7 @@ pub struct Engine<'a> {
 	debug: AtomicBool,
 	frontend: &'a dyn Frontend,
 
-	current_thread: Mutex<Option<JoinHandle<Evaluation>>>,
+	current_thread: Mutex<Option<EvalThread>>,
 	current_task: Mutex<Option<Arc<EvaluationTask<'a>>>>,
 	pondering_task: Mutex<Option<Arc<EvaluationTask<'a>>>>,
 }
@@ -119,6 +121,7 @@ pub enum SearchLimit {
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[repr(C)]
 pub struct ActualLimit {
 	pub nodes: Option<NonZeroUsize>,
 	pub depth: Option<NonZeroU8>,
@@ -155,6 +158,10 @@ impl<'a> Engine<'a> {
 		PossibleMoves::moves(*position).contains(checker_move)
 	}
 
+	pub fn current_position(&self) -> CheckersBitBoard {
+		*self.position.lock()
+	}
+
 	pub fn reset_position(&self) {
 		self.set_position(CheckersBitBoard::starting_position())
 	}
@@ -174,6 +181,41 @@ impl<'a> Engine<'a> {
 				None
 			}
 		}
+	}
+
+	pub fn evaluate(
+		&self,
+		cancel: Option<&AtomicBool>,
+		settings: EvaluationSettings,
+	) -> (Evaluation, Option<Move>) {
+		// finish the pondering thread
+		let mut pondering_task = self.pondering_task.lock();
+		if let Some(task) = pondering_task.take() {
+			task.end_ponder_flag.store(true, Ordering::Release);
+		}
+
+		let position = *self.position.lock();
+		let transposition_table = self.transposition_table.get_ref();
+		let limits = settings.get_limits(position.turn());
+		let allowed_moves = settings.restrict_moves;
+		let cancel_flag = AtomicBool::new(false);
+		let end_ponder_flag = AtomicBool::new(false);
+
+		let nodes_explored = AtomicUsize::new(0);
+
+		let task = EvaluationTask {
+			position,
+			transposition_table,
+			allowed_moves,
+			limits,
+			ponder: false,
+			cancel_flag,
+			end_ponder_flag,
+
+			nodes_explored,
+		};
+
+		search(Arc::new(task), self.frontend, cancel)
 	}
 
 	pub fn start_evaluation(&'static self, settings: EvaluationSettings) {
@@ -215,7 +257,7 @@ impl<'a> Engine<'a> {
 			*pondering_task = Some(task_ref.clone());
 		}
 
-		let thread = std::thread::spawn(move || search(task_ref, self.frontend));
+		let thread = std::thread::spawn(move || search(task_ref, self.frontend, None));
 		let mut thread_ptr = self.current_thread.lock();
 		*thread_ptr = Some(thread);
 	}
@@ -224,7 +266,7 @@ impl<'a> Engine<'a> {
 		let current_task = self.current_task.lock().take()?;
 		current_task.cancel_flag.store(true, Ordering::Release);
 
-		self.current_thread.lock().take();
+		let _ = self.current_thread.lock().take()?.join();
 
 		Some(())
 	}

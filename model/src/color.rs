@@ -5,9 +5,10 @@ use std::fmt::Display;
 /// The color of a piece
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[repr(C)]
 pub enum PieceColor {
-	Light,
-	Dark,
+	Light = 0,
+	Dark = 1,
 }
 
 impl Display for PieceColor {

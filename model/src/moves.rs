@@ -2,6 +2,7 @@ use crate::{CheckersBitBoard, SquareCoordinate};
 use std::fmt::{Display, Formatter};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[repr(C)]
 pub enum MoveDirection {
 	ForwardLeft = 0,
 	ForwardRight = 1,
@@ -72,6 +73,21 @@ impl Move {
 		dest as usize
 	}
 
+	/// Calculates the value of the position that was jumped over
+	///
+	/// # Safety
+	///
+	/// The result of this function is undefined if the move isn't a jump
+	pub const unsafe fn jump_position(self) -> usize {
+		let pos = match self.direction() {
+			MoveDirection::ForwardLeft => (self.start() + 7) % 32,
+			MoveDirection::ForwardRight => (self.start() + 1) % 32,
+			MoveDirection::BackwardLeft => self.start().wrapping_sub(1) % 32,
+			MoveDirection::BackwardRight => self.start().wrapping_sub(7) % 32,
+		};
+		pos as usize
+	}
+
 	/// Apply the move to a board. This does not mutate the original board,
 	/// but instead returns a new one.
 	///
@@ -128,12 +144,20 @@ impl Move {
 
 impl Display for Move {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		write!(
-			f,
-			"{}-{}",
-			SquareCoordinate::from_ampere_value(self.start() as usize),
-			SquareCoordinate::from_ampere_value(self.end_position())
-		)
+		let Some(start) =
+			SquareCoordinate::from_ampere_value(self.start() as usize).to_normal_value()
+		else {
+			return Err(std::fmt::Error);
+		};
+
+		let separator = if self.is_jump() { "x" } else { "-" };
+
+		let Some(end) = SquareCoordinate::from_ampere_value(self.end_position()).to_normal_value()
+		else {
+			return Err(std::fmt::Error);
+		};
+
+		write!(f, "{start}{separator}{end}")
 	}
 }
 

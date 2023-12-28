@@ -7,9 +7,10 @@ pub use engine::{
 	ENGINE_AUTHOR, ENGINE_NAME,
 };
 pub use eval::Evaluation;
-pub use model::{CheckersBitBoard, Move, Piece, PieceColor, PossibleMoves};
+pub use model::{CheckersBitBoard, Move, MoveDirection, Piece, PieceColor, PossibleMoves};
 pub use transposition_table::{TranspositionTable, TranspositionTableRef};
 
+pub mod c_abi;
 mod engine;
 mod eval;
 mod lazysort;

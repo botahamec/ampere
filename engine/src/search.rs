@@ -99,9 +99,13 @@ pub fn negamax(
 	}
 }
 
-pub fn search(task: Arc<EvaluationTask>, frontend: &dyn Frontend) -> Evaluation {
+pub fn search(
+	task: Arc<EvaluationTask>,
+	frontend: &dyn Frontend,
+	cancel: Option<&AtomicBool>,
+) -> (Evaluation, Option<Move>) {
 	let board = task.position;
-	let cancel_flag = &task.cancel_flag;
+	let cancel_flag = cancel.unwrap_or(&task.cancel_flag);
 
 	let allowed_moves = task.allowed_moves.clone();
 	let limits = task.limits;
@@ -115,25 +119,28 @@ pub fn search(task: Arc<EvaluationTask>, frontend: &dyn Frontend) -> Evaluation 
 	let mut eval = Evaluation::DRAW;
 	let mut best_move = None;
 	loop {
-		if let Some(max_depth) = max_depth {
-			if depth > max_depth.get() {
-				break;
+		// don't leave search is no good moves have been found
+		if best_move.is_some() {
+			if let Some(max_depth) = max_depth {
+				if depth > max_depth.get() {
+					break;
+				}
 			}
-		}
 
-		if let Some(max_time) = max_time {
-			if Instant::now() > max_time {
-				break;
+			if let Some(max_time) = max_time {
+				if Instant::now() > max_time {
+					break;
+				}
 			}
-		}
 
-		if let Some(max_nodes) = max_nodes {
-			if task
-				.nodes_explored
-				.load(std::sync::atomic::Ordering::Acquire)
-				> max_nodes.get()
-			{
-				break;
+			if let Some(max_nodes) = max_nodes {
+				if task
+					.nodes_explored
+					.load(std::sync::atomic::Ordering::Acquire)
+					> max_nodes.get()
+				{
+					break;
+				}
 			}
 		}
 
@@ -148,7 +155,7 @@ pub fn search(task: Arc<EvaluationTask>, frontend: &dyn Frontend) -> Evaluation 
 		);
 
 		// prevent incomplete search from overwriting evaluation
-		if cancel_flag.load(std::sync::atomic::Ordering::Acquire) {
+		if best_move.is_some() && cancel_flag.load(std::sync::atomic::Ordering::Acquire) {
 			break;
 		}
 
@@ -167,7 +174,7 @@ pub fn search(task: Arc<EvaluationTask>, frontend: &dyn Frontend) -> Evaluation 
 			);
 
 			// prevent incomplete search from overwriting evaluation
-			if cancel_flag.load(std::sync::atomic::Ordering::Acquire) {
+			if best_move.is_some() && cancel_flag.load(std::sync::atomic::Ordering::Acquire) {
 				break;
 			}
 
@@ -191,6 +198,11 @@ pub fn search(task: Arc<EvaluationTask>, frontend: &dyn Frontend) -> Evaluation 
 			beta = Evaluation::NULL_MAX;
 		} else {
 			beta = eval.add_f32(0.125);
+		}
+
+		if eval.is_force_sequence() {
+			// we don't need to search any deeper
+			return (eval, best_move);
 		}
 
 		depth += 1;
@@ -231,5 +243,5 @@ pub fn search(task: Arc<EvaluationTask>, frontend: &dyn Frontend) -> Evaluation 
 		}
 	}
 
-	eval
+	(eval, best_move)
 }
